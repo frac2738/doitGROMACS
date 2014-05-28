@@ -5,10 +5,12 @@ set -e
 #     Last update:  28.05.14                                                  #
 #     Author:       Francesco Carbone                                         #
 #     Description:  Script to execute a bunch of stuff with gromacs           #
+#		    Run with -h for more info				      #
+#									      #
 #     Updates :     - replaced "if" with "case" statement                     #
 #                   - added the rmsdf function                                #
 #                   - added the "sim_conditions" function                     #
-#                   - added the help message			              #
+#                   - added the help message (using getops)	              #
 #	            - added the plot function (plot using R)                  #	
 ###############################################################################
 
@@ -37,7 +39,7 @@ function inputs {
       -pname NA -nname CL -np $pioni
    # for negative ions use the -np flag
 }
-
+				########
 function energy_minimization {
    echo "-------- ENERGY MINIMIZATION --------"
    $path/grompp -f $temp1"_min.mdp" -c $name1"_ioni.pdb" -p topology.top       \
@@ -48,7 +50,7 @@ function energy_minimization {
    # plot the potential energy profile
    echo Potential | $path/g_energy -f $name1"_min.edr" -o $name1"_potential.xvg"
 }  
-
+				########
 function nvt {
    echo "-------- NVT --------"
    $path/grompp -f $temp1"_nvt.mdp" -c $name1"_min.gro" -p topology.top        \
@@ -57,7 +59,7 @@ function nvt {
    # plot the temperature profile 
    echo Temperature | $path/g_energy -f $name1"_nvt.edr" -o $name1"_temperature.xvg"
 } 
-
+				########
 function npt {
    echo "-------- NPT --------"
    $path/grompp -f $temp1"_npt.mdp" -c $name1"_nvt.gro" -p topology.top        \
@@ -68,7 +70,7 @@ function npt {
    # plot the density profile
    echo Density | $path/g_energy -f $name1"_npt.edr" -o $name1"_density.xvg"
 } 
-
+				########
 function sim_conditions {
    # calculate system potential energy 
    echo Potential | $path/g_energy -f $nameprod".edr" -o $nameprod"_potential.xvg"
@@ -79,7 +81,7 @@ function sim_conditions {
    # calculate system density
    echo Density | $path/g_energy -f $nameprod".edr" -o $nameprod"_density.xvg"
 }
-
+				########
 function clean_trj {
    # removing water molecules from the trajectory file
    echo Protein | $path/trjconv -s "input_"$timens".tpr" -f $nameprod".xtc"    \
@@ -101,7 +103,7 @@ function clean_trj {
    mv $nameprod"_only.tpr" $nameprod".tpr"
    mv $nameprod"_only.gro" $nameprod".gro"
 }
-
+				########
 function rmsdf {
    # calculating the RMSD 
    (echo "Backbone"; echo "Backbone") | $path/g_rms -s $nameprod".tpr"         \
@@ -117,7 +119,7 @@ function rmsdf {
    echo SideChain | $path/g_rmsf -s $nameprod".tpr" -f $nameprod".xtc"         \
       -o $nameprod"_rmsf_sc.xvg" -oq $nameprod"_rmsf_sc.pdb" -res 
 }
-
+				########
 function cluster_analysis {
    read -e -p " skip? " skip
    if [ ! -d ./clusters_$nameprod2 ] ; then
@@ -151,7 +153,7 @@ function cluster_analysis {
    # show cartoon
    cd ..
 }
-
+				########
 function pca {
    read -e -p " dt? " dt
    if [ ! -d ./PCA_$nameprod2 ] ; then
@@ -186,8 +188,9 @@ function pca {
    $path/xpm2ps -f gibbs-12.xpm -o gibbs-12.eps -rainbow red
    cd ..
 }
-
-function patches {
+				########
+# to replace with SAS analysis
+function patches {	
    # create the pdb directory
    if [ ! -d ./patches_$nameprod2 ] ; then
       mkdir patches_$nameprod2
@@ -203,29 +206,41 @@ function patches {
    /home/bsm3/zcbtfo4/public/automatic_patches -r 8 -t normal -l $nameprod"_patchlog" -o $nameprod"_patches" -
    cd ..
 }
-
+				########
 function plot {
    write something
 }
 
 ################ START OF THE HELP MESSAGE ################ 
-# Show this help message if run with "-h" 
+# Show this help message when the script is run with with the "-h" flag 
 
 while getopts ":h" opt; do
    case $opt in
       h)
       cat <<EOF
 
-                     doitGROMACS.sh -  version 1.x.x  
+--------------------------  doitGROMACS.sh -  version 1.x.x  --------------------------	
 
-Copyright (c) 2013-2014, University College London (UCL), Francesco Carbone
+Copyright(c) 2013-2014, University College London (UCL), Francesco Carbone
 
-This script is designed to automatise the first step of a molecular dynamics
+This script is designed to automatise the first steps of a molecular dynamics
 experiment (solvation and equilibration) and run some basic analyses on the
 trajectories (.xtc not .trr).
-This script was written using GROMACS 4.6 and although it should work with any
-previous versions, it is advise to check the commands before using a different
-version.
+
+NOTE 1)	This script was written using GROMACS 4.6 and although it should work with any
+previous versions, it is advise to check all the commands before using it with 
+a different version.
+
+NOTE 2)	In this script the names of all the files follows this general rules:
+	TPR FILES =>	input_XXX, where XXX stands for one of min/nvt/npt/ or the time
+			in [ns].
+	MDP FILES =>	TEMPERATURE_XXX_TIME, where XXX stands for ...see above...
+	OUTPUTS	  =>	refer to the specific comments in the functions.
+
+As a consequence, if the input files have been named following other rules, the names 
+(or the script) must be changed. 
+
+---------------------------------------------------------------------------------------
 
 EOF
       ;;
@@ -248,12 +263,12 @@ echo " 3 -  Starting from NVT "
 echo " 4 -  Starting from NPT "
 echo " 5 -  Remove water from a trajectory file "
 echo " 6 -  Plot all the simulation conditions (U-T-P-density)"
-echo " 7 -  Calculate RMSD, GYRATION RADIUS and RMSF [for backbone and sidechains] "
+echo " 7 -  Calculate RMSD, GYRATION RADIUS and RMSF [for both backbone and sidechains] "
 echo " 8 -  Cluster analysis "
 echo " 9 -  PCA analysis "
-echo " 10 - Do 8 - 9 "
-echo " 11 - Patch analysis [soon] "
-echo " 12 - Plot [soon] "
+echo " 10 - Do 8 AND 9 (in this order)"
+echo " 11 - Patch analysis [to be replaced by SAS analysis] "
+echo " 12 - Plot stuff [soon] "
 echo "-----------------------------------------------------------"
 
 read -e -p "What do you want to do? " choice
