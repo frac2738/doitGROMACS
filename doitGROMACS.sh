@@ -2,13 +2,14 @@
 set -e   
 ###############################################################################
 #     Version:      V1.0.3                                                    #
-#     Last update:  19.02.14                                                  #
+#     Last update:  28.05.14                                                  #
 #     Author:       Francesco Carbone                                         #
 #     Description:  Script to execute a bunch of stuff with gromacs           #
 #     Updates :     - replaced "if" with "case" statement                     #
 #                   - added the rmsdf function                                #
 #                   - added the "sim_conditions" function                     #
-#                   - added the "patches" function [testing]                  #
+#                   - added the help message			              #
+#	            - added the plot function (plot using R)                  #	
 ###############################################################################
 
 # functions definition
@@ -206,6 +207,37 @@ function patches {
 function plot {
    write something
 }
+
+################ START OF THE HELP MESSAGE ################ 
+# Show this help message if run with "-h" 
+
+while getopts ":h" opt; do
+   case $opt in
+      h)
+      cat <<EOF
+
+                     doitGROMACS.sh -  version 1.x.x  
+
+Copyright (c) 2013-2014, University College London (UCL), Francesco Carbone
+
+This script is designed to automatise the first step of a molecular dynamics
+experiment (solvation and equilibration) and run some basic analyses on the
+trajectories (.xtc not .trr).
+This script was written using GROMACS 4.6 and although it should work with any
+previous versions, it is advise to check the commands before using a different
+version.
+
+EOF
+      ;;
+      \?)
+         echo "invalid option: $OPTARG ! use -h for help!!!"
+      ;;
+   esac
+exit
+done
+
+################ END OF THE HELP MESSAGE ################ 
+
 
 ################ THE PROGRAM BEGINS HERE ################
 
