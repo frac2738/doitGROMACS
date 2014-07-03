@@ -5,17 +5,13 @@ set -e
 #     Last update:  02.07.14                                                  #
 #     Author:       Francesco Carbone                                         #
 #     Description:  Script to execute a bunch of stuff with gromacs           #
-#     Updates :     - replaced "if" with "case" statement                     #
-#                   - added the rmsdf function                                #
-#                   - added the "sim_conditions" function                     #
+#     Updates :     - fix options                                             #
+#                   - improved the help message                               #
+#                   - improved the comments for all the functions             #
 ###############################################################################
 
-################ START OF THE HELP MESSAGE ################ 
-# Show this help message if run with "-h" 
-
-while getopts "hb:n:t:r:k:s:f:p:" opt; do
-   case $opt in
-      h) cat <<EOF
+helpMessage() {
+   cat <<EOF
 
                      doitGROMACS.sh -  version 1.x.x  
 
@@ -28,20 +24,25 @@ This script was written using GROMACS 4.6 and although it should work with any
 previous versions, it is advise to check the commands before using a different
 version.
 
-Option   Type     Value       Description
----------------------------------------------------------------------------
+Option   Type     Value       Description                     [ALWAYS REQUIRED]
+--------------------------------------------------------------------------------
 -[no]h   bool     yes         Print help info
--b       string   acrm        Set the location of gromacs binaries:
+-b       string   acrm        Set the location of gromacs binaries
                               acrm     -> Darwin building computer
                               emerald  -> Emerald cluster
                               bear     -> Personal laptop
 -n       int      wt          Set the name
 -t       int      200         Set the simulation length
--r       string   r1     .    Set the number of the replica
+-r       string   r1          Set the number of the replica
 -k       int      400         Set the temperature in KELVIN
+
+
+Option   Type     Value       Description       [OPTIONAL (function dependant)]
+--------------------------------------------------------------------------------
 -s       string   .tpr        .tpr file          
 -f       string   .xtc        trajectory file
--p       string   .pdb        pdb file to use to start a simulation
+-c       string   .pdb        pdb file to use to start a simulation
+-e       string   .edr        Energy file 
 
 NOTE 1: In my simualtions all the output are printed in this format:
                            NAME_rX_TIME
@@ -51,31 +52,45 @@ NOTE 1: In my simualtions all the output are printed in this format:
          
 
 EOF
-      exit  ;;
-      b) cpu=$OPTARG       ;;
-      n) name1=$OPTARG     ;;
-      t) timens=$OPTARG    ;;
-      r) replica1=$OPTARG  ;;
-      k) temp=$OPTARG      ;;
-      s) tpr=$OPTARG       ;;
-      f) trj=$OPTARG       ;;
-      p) pdb1=$OPTARG      ;;
+}
+
+# check if no arguments are passed and in that case print the help message.
+if ( ! getopts ":hb:n:t:r:k:s:f:c:" opt); then
+	helpMessage;   exit $E_OPTERROR;
+fi
+
+# OPTIND= n° of arguments passed
+if [ $OPTIND -eq 0 ]; then echo "no arguments passed"; fi
+
+
+while getopts ":hb:n:t:r:k:s:f:c:" opt; do
+   case $opt in
+      h) helpMessage; exit    ;;
+      b) cpu=$OPTARG          ;;
+      n) name1=$OPTARG        ;;
+      t) timens=$OPTARG       ;;
+      r) replica1=$OPTARG     ;;
+      k) temp=$OPTARG         ;;
+      s) tpr=$OPTARG          ;;
+      f) trj=$OPTARG          ;;
+      c) pdb1=$OPTARG         ;;   
+      e) energy=$OPTARG       ;;
+      \?) helpMessage;  exit  ;;
    esac
 done
 
+# depending on the machine the script is running, locate both gromacs and R executables.
 case $cpu in
-   acrm) path='/acrm/usr/local/apps/gromacs/bin'  ;;
-   emerald) path='/apps/gromacs/4.6.3/bin'   ;;
-   bear) path='/usr/local/gromacs/bin' ;;
+   acrm) path='/acrm/usr/local/apps/gromacs/bin'; Rpath='/export/francesco/R-3.1.0/bin/R'  ;;
+   emerald) path='/apps/gromacs/4.6.3/bin'   ;; # no point in using R with the cluster
+   bear) path='/usr/local/gromacs/bin'; Rpath='/usr/local/bin/R'  ;;
    *) echo "ERROR!! ERROR!! ERROR!! no GROMACS executable found  ERROR!! ERROR!! ERROR!! "
 esac 
-
-################ END OF THE HELP MESSAGE ################ 
 
 ################# FUNCTIONS DECLARATION ################# 
 
 # modVim: it takes a text file and it converts all the comment character to "#" using vim (or vi).
-# This is to avoid the use of "@" as formatting character.
+# This is to avoid the use of "@" as formatting character in grace files.
 modVim() {
    ex $1 << EOEX
       :%s/@/#/g
@@ -83,8 +98,8 @@ modVim() {
 EOEX
 }
 
-# inputs: it takes a pdb file and generate all the outputs required for energy
-# minimisation; It acts in two steps:
+# inputs: it takes a pdb file and generate all the outputs required for the energy
+# minimisation; it acts in two steps:
 # 1) it creates a topology file depending on the force field (ff) and the water model chosen;
 # 2) it creates a box around the protein and it solvates it.
 # REQUIRED FILES:
@@ -92,7 +107,7 @@ EOEX
 
 inputs() {
    # check if a pdb file was given with the proper flag (-p) and ask for a pdb file otherwise.
-   if [ -z "$pdb1" ]; then
+   if [ -z "${pdb1+x}" ]; then
       ls
       read -e -p "which pdb do you want to use ? " pdb1
    fi
@@ -106,7 +121,6 @@ inputs() {
    read -e -p "select the protein-box distance? (nm) " distedge
    $path/editconf -f $name1"_processed.pdb" -o $name1"_inbox.pdb" -bt $boxtype \
       -d $distedge -c
-
    $path/genbox -cp $name1"_inbox.pdb" -cs spc216.gro -o $name1"_sol.pdb"      \
       -p topology.top
    $path/grompp -f G6PD_ionization.mdp -c $name1"_sol.pdb" -p topology.top     \
@@ -128,6 +142,7 @@ energy_minimization() {
    echo Potential | $path/g_energy -f $name1"_min.edr" -o $name1"_potential.xvg"
    modVim $name1"_potential.xvg"
    # plot the potential energy profile using ggplot
+   #GGplot $name1"_potential.xvg"
 }  
 
 nvt() {
@@ -154,13 +169,13 @@ npt() {
 
 sim_conditions() {
    # export potential energy, temperature, pressure and density profiles 
-   echo Potential | $path/g_energy -f $nameprod".edr" -o $nameprod"_potential.xvg"
+   echo Potential | $path/g_energy -f $energy -o $nameprod"_potential.xvg"
    modVim $nameprod"_potential.xvg"
-   echo Temperature | $path/g_energy -f $nameprod".edr" -o $nameprod"_temperature.xvg"
+   echo Temperature | $path/g_energy -f $energy -o $nameprod"_temperature.xvg"
    modVim $nameprod"_temperature.xvg"
-   echo Pressure | $path/g_energy -f $nameprod".edr" -o $nameprod"_pressure.xvg"
+   echo Pressure | $path/g_energy -f $energy -o $nameprod"_pressure.xvg"
    modVim $nameprod"_pressure.xvg"
-   echo Density | $path/g_energy -f $nameprod".edr" -o $nameprod"_density.xvg"
+   echo Density | $path/g_energy -f $energy -o $nameprod"_density.xvg"
    modVim $nameprod"_density.xvg"
    # plot using ggplot
 }
@@ -276,8 +291,7 @@ GGplot() {
    write something
 }
 
-
-# deprecated
+# deprecated will be rewritten fro SAS analysis
 patches() {
    # create the pdb directory
    if [ ! -d ./patches_$nameprod2 ] ; then
@@ -352,10 +366,9 @@ case $choice in
       do
          mv clusters_$nameprod2 clusters"$i"_$nameprod2
          cluster_analysis
-         read -e -p "Do you want to rerun the analysis with a different method? [yes/no] " ramen
          i++
-      done
-      ;;
+         read -e -p "Do you want to rerun the analysis with a different method? [yes/no] " ramen
+      done  ;;
    9)
       pca   ;;
    10)
