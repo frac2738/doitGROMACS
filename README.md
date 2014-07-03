@@ -1,6 +1,5 @@
 doitGROMACS
 ===========
 
-prova gitHub
+write README
 
-prova prova
