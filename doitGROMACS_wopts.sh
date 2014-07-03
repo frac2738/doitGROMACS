@@ -8,12 +8,15 @@ set -e
 #     Updates :     - fix options                                             #
 #                   - improved the help message                               #
 #                   - improved the comments for all the functions             #
+#                                                                             #
 ###############################################################################
+
+################# Function declaration ################# 
 
 helpMessage() {
    cat <<EOF
 
-                     doitGROMACS.sh -  version 1.x.x  
+                     doitGROMACS.sh -  version 1.0.0  
 
 Copyright (c) 2013-2014, University College London (UCL), Francesco Carbone
 
@@ -24,7 +27,7 @@ This script was written using GROMACS 4.6 and although it should work with any
 previous versions, it is advise to check the commands before using a different
 version.
 
-Option   Type     Value       Description                     [ALWAYS REQUIRED]
+Option   Type     Value       Description                  [PROBABLY REQUIRED]
 --------------------------------------------------------------------------------
 -[no]h   bool     yes         Print help info
 -b       string   acrm        Set the location of gromacs binaries
@@ -37,57 +40,23 @@ Option   Type     Value       Description                     [ALWAYS REQUIRED]
 -k       int      400         Set the temperature in KELVIN
 
 
-Option   Type     Value       Description       [OPTIONAL (function dependant)]
+Option   Type     Value       Description      [OPTIONAL (function dependant)]
 --------------------------------------------------------------------------------
 -s       string   .tpr        .tpr file          
 -f       string   .xtc        trajectory file
 -c       string   .pdb        pdb file to use to start a simulation
 -e       string   .edr        Energy file 
 
-NOTE 1: In my simualtions all the output are printed in this format:
+NOTE: In my simualtions all the output are printed in this format:
                            NAME_rX_TIME
-        where NAME is the name of the mutation (306r), rX is the replica number (r1,r2,...) 
-        and TIME is the simulation time. As a consequence this script takes and process
-        outputs names in this form.
+      where NAME is the name of the mutation (306r), rX is the replica number
+     (r1,r2,...) and TIME is the simulation time. As a consequence this script 
+      takes and process outputs names in this form.
          
 
 EOF
 }
 
-# check if no arguments are passed and in that case print the help message.
-if ( ! getopts ":hb:n:t:r:k:s:f:c:" opt); then
-	helpMessage;   exit $E_OPTERROR;
-fi
-
-# OPTIND= n° of arguments passed
-if [ $OPTIND -eq 0 ]; then echo "no arguments passed"; fi
-
-
-while getopts ":hb:n:t:r:k:s:f:c:" opt; do
-   case $opt in
-      h) helpMessage; exit    ;;
-      b) cpu=$OPTARG          ;;
-      n) name1=$OPTARG        ;;
-      t) timens=$OPTARG       ;;
-      r) replica1=$OPTARG     ;;
-      k) temp=$OPTARG         ;;
-      s) tpr=$OPTARG          ;;
-      f) trj=$OPTARG          ;;
-      c) pdb1=$OPTARG         ;;   
-      e) energy=$OPTARG       ;;
-      \?) helpMessage;  exit  ;;
-   esac
-done
-
-# depending on the machine the script is running, locate both gromacs and R executables.
-case $cpu in
-   acrm) path='/acrm/usr/local/apps/gromacs/bin'; Rpath='/export/francesco/R-3.1.0/bin/R'  ;;
-   emerald) path='/apps/gromacs/4.6.3/bin'   ;; # no point in using R with the cluster
-   bear) path='/usr/local/gromacs/bin'; Rpath='/usr/local/bin/R'  ;;
-   *) echo "ERROR!! ERROR!! ERROR!! no GROMACS executable found  ERROR!! ERROR!! ERROR!! "
-esac 
-
-################# FUNCTIONS DECLARATION ################# 
 
 # modVim: it takes a text file and it converts all the comment character to "#" using vim (or vi).
 # This is to avoid the use of "@" as formatting character in grace files.
@@ -105,13 +74,7 @@ EOEX
 # REQUIRED FILES:
 # OUTPUTS:
 
-inputs() {
-   # check if a pdb file was given with the proper flag (-p) and ask for a pdb file otherwise.
-   if [ -z "${pdb1+x}" ]; then
-      ls
-      read -e -p "which pdb do you want to use ? " pdb1
-   fi
-   
+inputs() { 
    # create the topology.
    # 6 = AMBER99SB-ILDN protein, nucleic AMBER94 (Lindorff-Larsen et al., Proteins 78, 1950-58, 2010)
    # 1 = TIP3P
@@ -195,7 +158,7 @@ clean_trj() {
    # account for the periodicity (fitting) 
    (echo "Backbone"; echo "Protein") | $path/trjconv -s $nameprod"_only.tpr"   \
       -f $nameprod"_nojump.xtc" -o $nameprod"_fit.xtc" -fit rot+trans
-   # remove intermediate files
+   # remove intermediate files and rename them in less complicated way
    rm $nameprod"_nojump.xtc" $nameprod".xtc" $nameprod"_only.xtc"
    mv $nameprod"_fit.xtc" $nameprod".xtc"
    mv $nameprod"_only.tpr" $nameprod".tpr"
@@ -219,6 +182,7 @@ rmsdf() {
 }
 
 cluster_analysis() {
+   
    read -e -p " skip? " skip
    if [ ! -d ./clusters_$nameprod2 ] ; then
       mkdir clusters_$nameprod2
@@ -236,14 +200,12 @@ cluster_analysis() {
    #check the distribution file and decide the cutoff
    xmgrace rmsd-distribution.xvg
    read -e -p "Which cutoff do you want to use? " cutoff
-   read -e -p "Which method do you want to use? [gromos - linkage] " method
+   method='gromos'
    # cluster analysis on the rmsd matrix (Using the backbone for the calculation)
    (echo "Backbone"; echo "Backbone") | $path/g_cluster -s ../$tpr -f ../$trj  \
       -dm rmsd-matrix.xpm -o clusters.xpm -sz clusters-size.xvg                \
       -clid clusters-ovt.xvg -cl clusters.pdb -cutoff $cutoff -method $method  \
       -tu ns -skip $skip
-   # repeat the analysis using a different -method to improve results
-   #
    # to visualize in pymol use
    # split_states clusters
    # delete clusters
@@ -310,9 +272,42 @@ patches() {
    cd ..
 }
 
-#########################################################
+################# end function declaration ################# 
 
-################ THE PROGRAM BEGINS HERE ################
+################# The program begins here ################
+
+while getopts ":hb:n:t:r:k:s:f:c:" opt; do
+   case $opt in
+      h) helpMessage; exit    ;;
+      b) cpu=$OPTARG          ;;
+      n) name1=$OPTARG        ;;
+      t) timens=$OPTARG       ;;
+      r) replica1=$OPTARG     ;;
+      k) temp=$OPTARG         ;;
+      s) tpr=$OPTARG          ;;
+      f) trj=$OPTARG          ;;
+      c) pdb1=$OPTARG         ;;   
+      e) energy=$OPTARG       ;;
+      \?) helpMessage;  exit  ;;
+   esac
+done
+
+# check if no arguments are passed and in that case print the help message.
+if ( ! getopts ":hb:n:t:r:k:s:f:c:e:" opt); then
+	helpMessage;   exit
+fi
+
+# depending on the machine the script is running, locate both gromacs and R executables.
+case $cpu in
+   acrm) path='/acrm/usr/local/apps/gromacs/bin'
+         Rpath='/export/francesco/R-3.1.0/bin/R'  ;;
+   emerald) path='/apps/gromacs/4.6.3/bin'   ;;
+   bear) path='/usr/local/gromacs/bin'
+         Rpath='/usr/local/bin/R'  ;;
+   *) echo " ERROR!! ERROR!! no GROMACS executable found  ERROR!! ERROR!! "
+esac 
+
+########################
 
 echo " ----------------- THIS ARE YOUR OPTIONS ----------------- "
 echo " 1 -  Starting from scratch "
@@ -335,9 +330,26 @@ case $choice in
    1|2|3|4|5|6|7|8|9|10|11|12)
    ;; 
    *)
-   echo "ERROR!! ERROR!! ERROR!! $choice not listed" ERROR!! ERROR!! ERROR!!
+   echo " ERROR!! ERROR!! $choice not listed ERROR!! ERROR!! "
    exit
    ;;
+esac
+
+# Check optional dependencies [arguments required]
+case $choice in
+   1) if [ -z "${pdb1+x}" ]; then
+      ls
+      read -e -p "which pdb do you want to use ? " pdb1
+   fi;;
+   6) if [ -z "${energy+x}" ]; then
+      read -e -p "which edr do you want to use? " energy
+      fi;;
+   5|7|8|9|10)
+      if [ -z "${tpr+x}" ] || [ -z "${trj+x}" ]; then
+         ls
+         read -e -p "which tpr do you want to use? " tpr
+         read -e -p "which trj do you want to use? " trj
+      fi;;
 esac
 
 nameprod="${name1}_${replica1}_${timens}"
@@ -379,4 +391,4 @@ case $choice in
       plot  ;;
 esac
  
-################ THE PROGRAM ENDS HERE ################
+################ The program ends here ################
