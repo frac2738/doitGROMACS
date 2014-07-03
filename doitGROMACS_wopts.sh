@@ -2,23 +2,88 @@
 set -e   
 ###############################################################################
 #     Version:      V1.0.3                                                    #
-#     Last update:  19.02.14                                                  #
+#     Last update:  02.07.14                                                  #
 #     Author:       Francesco Carbone                                         #
 #     Description:  Script to execute a bunch of stuff with gromacs           #
 #     Updates :     - replaced "if" with "case" statement                     #
 #                   - added the rmsdf function                                #
 #                   - added the "sim_conditions" function                     #
-#                   - added the "patches" function [testing]                  #
 ###############################################################################
 
+################ START OF THE HELP MESSAGE ################ 
+# Show this help message if run with "-h" 
 
-# function that takes a text file and replace all "@" to "#" using vim
+while getopts "hb:n:t:r:k:s:f:" opt; do
+   case $opt in
+      h) cat <<EOF
+
+                     doitGROMACS.sh -  version 1.x.x  
+
+Copyright (c) 2013-2014, University College London (UCL), Francesco Carbone
+
+This script is designed to automatise the first step of a molecular dynamics
+experiment (solvation and equilibration) and run some basic analyses on the
+trajectory files (.xtc not .trr).
+This script was written using GROMACS 4.6 and although it should work with any
+previous versions, it is advise to check the commands before using a different
+version.
+
+Option   Type     Value       Description
+---------------------------------------------------------------------------
+-[no]h   bool     yes         Print help info
+-b       string   acrm        Set the location of gromacs binaries:
+                              acrm     -> Darwin building computer
+                              emerald  -> Emerald cluster
+                              bear     -> Personal laptop
+-n       int      wt,306r     Set the name
+-t       int      200         Set the simulation length
+-r       string   r1,r2...    Set the number of the replica
+-k       int      400         Set the temperature in KELVIN
+-s       string   .tpr        .tpr file          
+-f       string   .xtc        trajectory file
+
+NOTE 1: In my simualtions all the output are printed in this format:
+                           NAME_rX_TIME
+        where NAME is the name of the mutation (306r), rX is the replica number (r1,r2,...) 
+        and TIME is the simulation time. As a consequence this script takes and process
+        outputs names in this form.
+         
+
+EOF
+      ;;
+      b) cpu=$OPTARG       ;;
+      n) name1=$OPTARG      ;;
+      t) timens=$OPTARG    ;;
+      r) replica1=$OPTARG   ;;
+      k) temp=$OPTARG      ;;
+      s) tpr=$OPTARG       ;;
+      f) trj=$OPTARG       ;;
+   esac
+exit
+done
+
+case $cpu in
+   acrm) path='/acrm/usr/local/apps/gromacs/bin'  ;;
+   emerald) path='/apps/gromacs/4.6.3/bin'   ;;
+   bear) path='/usr/local/gromacs/bin' ;;
+   *) echo "ERROR!! ERROR!! ERROR!! no GROMACS executable found  ERROR!! ERROR!! ERROR!! "
+esac 
+
+################ END OF THE HELP MESSAGE ################ 
+
+################# FUNCTIONS DECLARATION ################# 
+
+# modVim: it takes a text file and replace all "@" to "#" using vim.
 modVim() {
    ex $1 << EOEX
       :%s/@/#/g
       :wq
 EOEX
 }
+
+# inputs: it takes a pdb file and generate all the outputs required for equilibration.
+# 1) it creates the topology depending on the ff and water model chosen;
+# 2) it create a box around the protein and it solvates it.
 
 inputs() {
    ls
@@ -44,13 +109,12 @@ inputs() {
    # for negative ions use the -np flag
 }
 
+# energy_minimization: it minimises a structure.
 energy_minimization() {
    echo "-------- ENERGY MINIMIZATION --------"
    $path/grompp -f $temp1"_min.mdp" -c $name1"_ioni.pdb" -p topology.top       \
       -o input_min.tpr
    $path/mdrun -s input_min.tpr -deffnm $name1"_min" -v  
-   # for X processor use:
-   # $path/mpirun -np X mdrun_mpi -s input_min.tpr -deffnm $name1"_min" -v
    # plot the potential energy profile
    echo Potential | $path/g_energy -f $name1"_min.edr" -o $name1"_potential.xvg"
 }  
@@ -193,6 +257,12 @@ pca() {
    cd ..
 }
 
+GGplot() {
+   write something
+}
+
+
+# deprecated
 patches() {
    # create the pdb directory
    if [ ! -d ./patches_$nameprod2 ] ; then
@@ -211,39 +281,7 @@ patches() {
    cd ..
 }
 
-GGplot() {
-   write something
-}
-
-################ START OF THE HELP MESSAGE ################ 
-# Show this help message if run with "-h" 
-
-while getopts ":h" opt; do
-   case $opt in
-      h)
-      cat <<EOF
-
-                     doitGROMACS.sh -  version 1.x.x  
-
-Copyright (c) 2013-2014, University College London (UCL), Francesco Carbone
-
-This script is designed to automatise the first step of a molecular dynamics
-experiment (solvation and equilibration) and run some basic analyses on the
-trajectories (.xtc not .trr).
-This script was written using GROMACS 4.6 and although it should work with any
-previous versions, it is advise to check the commands before using a different
-version.
-
-EOF
-      ;;
-      \?)
-         echo "invalid option: $OPTARG ! use -h for help!!!"
-      ;;
-   esac
-exit
-done
-
-################ END OF THE HELP MESSAGE ################ 
+#########################################################
 
 ################ THE PROGRAM BEGINS HERE ################
 
@@ -262,6 +300,7 @@ echo " 11 - Patch analysis [soon] "
 echo " 12 - Plot [soon] "
 echo "-----------------------------------------------------------"
 
+
 read -e -p "What do you want to do? " choice
 case $choice in
    1|2|3|4|5|6|7|8|9|10|11|12)
@@ -272,52 +311,24 @@ case $choice in
    ;;
 esac
 
-# define the path to gromacs
-echo " acrm17  => /acrm/usr/local/apps/gromacs/bin"
-echo " Emerald => /apps/gromacs/4.6.3/bin"
-echo " bear    => /usr/local/gromacs/bin"
-read -e -p "Enter the path to gromacs: " path   # -i "/acrm/usr/local/apps/gromacs/bin" path
-
-echo "All the output names will be written following this rules: NAME_rX_TIME"
-read -e -p "Insert NAME " name1
-read -e -p "Insert TIME (ns) " timens
-read -e -p "Insert REPLICA NUMBER " repli1
-nameprod="${name1}_${repli1}_${timens}"
-nameprod2="${name1}_${repli1}"
-
-if [ $choice = 1 -o $choice = 2 -o $choice = 3 -o $choice = 4 ]; then 
-   read -e -p "What temperature are you using? " temp1
-fi
-
-if [ $choice = 8 -o $choice = 9 -o $choice = 10 -o $choice = 11 ]; then
-   ls
-   read -e -p "Select the .tpr file : " tpr
-   read -e -p "Select the trajectory file: " trj
-fi
+nameprod="${name1}_${replica1}_${timens}"
+nameprod2="${name1}_${replica1}"
 
 case $choice in
    1 )
-      inputs && energy_minimization && nvt && npt # ;; x separare comandi/ && se il 2° MUST wait prima di essere eseguito
-      ;;             # with ";&" the next block is executer without testing
-                     # with ";;&" il programma passa al blocco successivo ma lo testa anche se c'è già stato il match 
+      inputs && energy_minimization && nvt && npt  ;;
    2)
-      energy_minimization && nvt && npt
-      ;;
+      energy_minimization && nvt && npt   ;;
    3)
-      nvt && npt
-      ;;
+      nvt && npt  ;;
    4)
-      npt
-      ;;
+      npt   ;;
    5)
-      clean_trj
-      ;;
+      clean_trj   ;;
    6) 
-      sim_conditions
-      ;;
+      sim_conditions ;;
    7)
-      rmsdf
-      ;;
+      rmsdf ;;
    8)
       i=1
       cluster_analysis
@@ -331,17 +342,13 @@ case $choice in
       done
       ;;
    9)
-      pca
-      ;;
+      pca   ;;
    10)
-      cluster_analysis && pca
-      ;;
+      cluster_analysis && pca ;;
    11)
-      patches
-      ;;
+      patches  ;;
    12)
-      plot
-      ;;
+      plot  ;;
 esac
  
 ################ THE PROGRAM ENDS HERE ################
