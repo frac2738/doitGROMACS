@@ -35,9 +35,9 @@ Option   Type     Value       Description
                               acrm     -> Darwin building computer
                               emerald  -> Emerald cluster
                               bear     -> Personal laptop
--n       int      wt,306r     Set the name
+-n       int      wt          Set the name
 -t       int      200         Set the simulation length
--r       string   r1,r2...    Set the number of the replica
+-r       string   r1     .    Set the number of the replica
 -k       int      400         Set the temperature in KELVIN
 -s       string   .tpr        .tpr file          
 -f       string   .xtc        trajectory file
