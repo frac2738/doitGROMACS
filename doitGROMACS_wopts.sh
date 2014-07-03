@@ -53,7 +53,6 @@ NOTE: In my simualtions all the output are printed in this format:
      (r1,r2,...) and TIME is the simulation time. As a consequence this script 
       takes and process outputs names in this form.
          
-
 EOF
 }
 
