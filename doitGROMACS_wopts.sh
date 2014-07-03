@@ -13,7 +13,7 @@ set -e
 ################ START OF THE HELP MESSAGE ################ 
 # Show this help message if run with "-h" 
 
-while getopts "hb:n:t:r:k:s:f:" opt; do
+while getopts "hb:n:t:r:k:s:f:p:" opt; do
    case $opt in
       h) cat <<EOF
 
@@ -41,6 +41,7 @@ Option   Type     Value       Description
 -k       int      400         Set the temperature in KELVIN
 -s       string   .tpr        .tpr file          
 -f       string   .xtc        trajectory file
+-p       string   .pdb        pdb file to use to start a simulation
 
 NOTE 1: In my simualtions all the output are printed in this format:
                            NAME_rX_TIME
@@ -50,16 +51,16 @@ NOTE 1: In my simualtions all the output are printed in this format:
          
 
 EOF
-      ;;
+      exit  ;;
       b) cpu=$OPTARG       ;;
-      n) name1=$OPTARG      ;;
+      n) name1=$OPTARG     ;;
       t) timens=$OPTARG    ;;
-      r) replica1=$OPTARG   ;;
+      r) replica1=$OPTARG  ;;
       k) temp=$OPTARG      ;;
       s) tpr=$OPTARG       ;;
       f) trj=$OPTARG       ;;
+      p) pdb1=$OPTARG      ;;
    esac
-exit
 done
 
 case $cpu in
@@ -73,7 +74,8 @@ esac
 
 ################# FUNCTIONS DECLARATION ################# 
 
-# modVim: it takes a text file and replace all "@" to "#" using vim.
+# modVim: it takes a text file and it converts all the comment character to "#" using vim (or vi).
+# This is to avoid the use of "@" as formatting character.
 modVim() {
    ex $1 << EOEX
       :%s/@/#/g
@@ -81,73 +83,86 @@ modVim() {
 EOEX
 }
 
-# inputs: it takes a pdb file and generate all the outputs required for equilibration.
-# 1) it creates the topology depending on the ff and water model chosen;
-# 2) it create a box around the protein and it solvates it.
+# inputs: it takes a pdb file and generate all the outputs required for energy
+# minimisation; It acts in two steps:
+# 1) it creates a topology file depending on the force field (ff) and the water model chosen;
+# 2) it creates a box around the protein and it solvates it.
+# REQUIRED FILES:
+# OUTPUTS:
 
 inputs() {
-   ls
-   read -e -p "which pdb should be used as input? " pdb1
+   # check if a pdb file was given with the proper flag (-p) and ask for a pdb file otherwise.
+   if [ -z "$pdb1" ]; then
+      ls
+      read -e -p "which pdb do you want to use ? " pdb1
+   fi
+   
+   # create the topology.
+   # 6 = AMBER99SB-ILDN protein, nucleic AMBER94 (Lindorff-Larsen et al., Proteins 78, 1950-58, 2010)
+   # 1 = TIP3P
+   (echo "6"; echo "1") | $path/pdb2gmx -f $pdb1 -o $name1"_processed.pdb" -p topology.top -ignh -v
 
-   echo "-------- TOPOLOGY CREATION --------"
-   $path/pdb2gmx -f $pdb1 -o $name1"_processed.pdb" -p topology.top -ignh -v
-
-   echo "-------- BOX DEFINITION --------"
    read -e -p "select the type of box? " boxtype
    read -e -p "select the protein-box distance? (nm) " distedge
    $path/editconf -f $name1"_processed.pdb" -o $name1"_inbox.pdb" -bt $boxtype \
       -d $distedge -c
 
-   echo "-------- SOLVATION --------"
    $path/genbox -cp $name1"_inbox.pdb" -cs spc216.gro -o $name1"_sol.pdb"      \
       -p topology.top
    $path/grompp -f G6PD_ionization.mdp -c $name1"_sol.pdb" -p topology.top     \
-      -o input_ioni.tpr
+      -o input_ioni.tpr 
    read -e -p "how many ions do you need? " pioni
    $path/genion -s input_ioni.tpr -p topology.top -o $name1"_ioni.pdb"         \
       -pname NA -nname CL -np $pioni
    # for negative ions use the -np flag
 }
 
-# energy_minimization: it minimises a structure.
+# energy_minimization: function that minimises a structure.
+# REQUIRED FILES:
+# OUTPUTS: 
 energy_minimization() {
-   echo "-------- ENERGY MINIMIZATION --------"
    $path/grompp -f $temp1"_min.mdp" -c $name1"_ioni.pdb" -p topology.top       \
       -o input_min.tpr
    $path/mdrun -s input_min.tpr -deffnm $name1"_min" -v  
-   # plot the potential energy profile
+   # export the potential energy profile
    echo Potential | $path/g_energy -f $name1"_min.edr" -o $name1"_potential.xvg"
+   modVim $name1"_potential.xvg"
+   # plot the potential energy profile using ggplot
 }  
 
 nvt() {
-   echo "-------- NVT --------"
    $path/grompp -f $temp1"_nvt.mdp" -c $name1"_min.gro" -p topology.top        \
       -o input_nvt.tpr
    $path/mdrun -s input_nvt.tpr -deffnm $name1"_nvt" -v
-   # plot the temperature profile 
+   # export the temperature profile 
    echo Temperature | $path/g_energy -f $name1"_nvt.edr" -o $name1"_temperature.xvg"
+   modVim $name1"_temperature.xvg"
+   # plot the temperature profile using ggplot
 } 
 
 npt() {
-   echo "-------- NPT --------"
    $path/grompp -f $temp1"_npt.mdp" -c $name1"_nvt.gro" -p topology.top        \
       -o input_npt.tpr
    $path/mdrun -s input_npt.tpr -deffnm $name1"_npt" -v  
-   # plot the pressure profile 
+   # export the pressure profile 
    echo Pressure | $path/g_energy -f $name1"_npt.edr" -o $name1"_pressure.xvg"
-   # plot the density profile
+   modVim $name1"_pressure.xvg"
+   # export the density profile
    echo Density | $path/g_energy -f $name1"_npt.edr" -o $name1"_density.xvg"
+   modVim $name1"_density.xvg"
 } 
 
 sim_conditions() {
-   # calculate system potential energy 
+   # export potential energy, temperature, pressure and density profiles 
    echo Potential | $path/g_energy -f $nameprod".edr" -o $nameprod"_potential.xvg"
-   # calculate system temperature 
+   modVim $nameprod"_potential.xvg"
    echo Temperature | $path/g_energy -f $nameprod".edr" -o $nameprod"_temperature.xvg"
-   # calculate system pressure 
+   modVim $nameprod"_temperature.xvg"
    echo Pressure | $path/g_energy -f $nameprod".edr" -o $nameprod"_pressure.xvg"
-   # calculate system density
+   modVim $nameprod"_pressure.xvg"
    echo Density | $path/g_energy -f $nameprod".edr" -o $nameprod"_density.xvg"
+   modVim $nameprod"_density.xvg"
+   # plot using ggplot
 }
 
 clean_trj() {
