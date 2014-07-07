@@ -11,7 +11,7 @@ set -e
 #                                                                             #
 ###############################################################################
 
-################# Function declaration ################# 
+################# Functions declaration ################# 
 
 helpMessage() {
    cat <<EOF
@@ -22,12 +22,13 @@ Copyright (c) 2013-2014, University College London (UCL), Francesco Carbone
 
 This script is designed to automatise the first step of a molecular dynamics
 experiment (solvation and equilibration) and run some basic analyses on the
-trajectory files (.xtc not .trr).
+trajectory files (.xtc not .trr), using GROMACS tools.
 This script was written using GROMACS 4.6 and although it should work with any
 previous versions, it is advise to check the commands before using a different
 version.
 
-Option   Type     Value       Description                  [PROBABLY REQUIRED]
+
+Option   Type     Value       Description                    [ALWAYS REQUIRED]
 --------------------------------------------------------------------------------
 -[no]h   bool     yes         Print help info
 -b       string   acrm        Set the location of gromacs binaries
@@ -35,17 +36,18 @@ Option   Type     Value       Description                  [PROBABLY REQUIRED]
                               emerald  -> Emerald cluster
                               bear     -> Personal laptop
 -n       int      wt          Set the name
--t       int      200         Set the simulation length
--r       string   r1          Set the number of the replica
--k       int      400         Set the temperature in KELVIN
 
 
 Option   Type     Value       Description      [OPTIONAL (function dependant)]
 --------------------------------------------------------------------------------
+-t       int      200         Set the simulation length
+-r       string   r1          Set the number of the replica
+-k       int      400         Set the temperature in KELVIN
 -s       string   .tpr        .tpr file          
 -f       string   .xtc        trajectory file
 -c       string   .pdb        pdb file to use to start a simulation
 -e       string   .edr        Energy file 
+
 
 NOTE: In my simualtions all the output are printed in this format:
                            NAME_rX_TIME
@@ -180,7 +182,7 @@ rmsdf() {
       -o $nameprod"_rmsf_sc.xvg" -oq $nameprod"_rmsf_sc.pdb" -res 
 }
 
-cluster_analysis() {
+clusterAnalysis() {
    
    read -e -p " skip? " skip
    if [ ! -d ./clusters_$nameprod2 ] ; then
@@ -253,7 +255,7 @@ GGplot() {
 }
 
 # deprecated will be rewritten fro SAS analysis
-patches() {
+sasAnalysis() {
    # create the pdb directory
    if [ ! -d ./patches_$nameprod2 ] ; then
       mkdir patches_$nameprod2
@@ -271,9 +273,9 @@ patches() {
    cd ..
 }
 
-################# end function declaration ################# 
+############################################################################### 
 
-################# The program begins here ################
+############################ The program begins here ##########################
 
 while getopts ":hb:n:t:r:k:s:f:c:" opt; do
    case $opt in
@@ -292,9 +294,9 @@ while getopts ":hb:n:t:r:k:s:f:c:" opt; do
 done
 
 # check if no arguments are passed and in that case print the help message.
-if ( ! getopts ":hb:n:t:r:k:s:f:c:e:" opt); then
-	helpMessage;   exit
-fi
+#if ( ! getopts ":hb:n:t:r:k:s:f:c:e:" opt); then
+#	helpMessage;   exit
+#fi
 
 # depending on the machine the script is running, locate both gromacs and R executables.
 case $cpu in
@@ -302,8 +304,11 @@ case $cpu in
          Rpath='/export/francesco/R-3.1.0/bin/R'  ;;
    emerald) path='/apps/gromacs/4.6.3/bin'   ;;
    bear) path='/usr/local/gromacs/bin'
-         Rpath='/usr/local/bin/R'  ;;
-   *) echo " ERROR!! ERROR!! no GROMACS executable found  ERROR!! ERROR!! "
+         Rpath='/usr/bin/R'  ;;
+   *) echo "
+                  ---- no GROMACS executable found ---- 
+      "
+   helpMessage;   exit  ;;
 esac 
 
 ########################
@@ -319,22 +324,26 @@ echo " 7 -  Calculate RMSD, GYRATION RADIUS and RMSF [for backbone and sidechain
 echo " 8 -  Cluster analysis "
 echo " 9 -  PCA analysis "
 echo " 10 - Do 8 and 9 "
-echo " 11 - Patch analysis [soon] "
-echo " 12 - Plot [soon] "
+echo " 11 - SAS analysis [soon] "
+echo " 12 - Plot with ggplot(R) [soon] "
 echo "-----------------------------------------------------------"
 
-
+# check the existance of the selected option and stop the execution if the 
+# required flags [$cpu / $name ] are missing.
+# N.B. $cpu was checked before, right after the getops loop.
 read -e -p "What do you want to do? " choice
 case $choice in
    1|2|3|4|5|6|7|8|9|10|11|12)
-   ;; 
+      if [ -z "${name1+x}" ]; then
+         helpMessage;   exit  ;
+      fi ;;
    *)
    echo " ERROR!! ERROR!! $choice not listed ERROR!! ERROR!! "
    exit
    ;;
 esac
 
-# Check optional dependencies [arguments required]
+# Check optional dependencies [depending on the function selected]
 case $choice in
    1) if [ -z "${pdb1+x}" ]; then
       ls
@@ -371,19 +380,19 @@ case $choice in
       rmsdf ;;
    8)
       i=1
-      cluster_analysis
+      clusterAnalysis
       read -e -p "Do you want to rerun the analysis with a different method? [yes/no] " ramen
       while [ "$ramen" == "yes" ] 
       do
          mv clusters_$nameprod2 clusters"$i"_$nameprod2
-         cluster_analysis
+         clusterAnalysis
          i++
          read -e -p "Do you want to rerun the analysis with a different method? [yes/no] " ramen
       done  ;;
    9)
       pca   ;;
    10)
-      cluster_analysis && pca ;;
+      clusterAnalysis && pca ;;
    11)
       patches  ;;
    12)
