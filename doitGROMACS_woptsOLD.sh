@@ -50,7 +50,7 @@ Option   Type     Value       Description      [OPTIONAL (function dependant)]
 
 
 NOTE: In my simualtions all the output are printed in this format:
-                           NAMErX_TIME
+                           NAME_rX_TIME
       where NAME is the name of the mutation (306r), rX is the replica number
      (r1,r2,...) and TIME is the simulation time. As a consequence this script 
       takes and process outputs names in this form.
@@ -185,10 +185,10 @@ rmsdf() {
 clusterAnalysis() {
    
    read -e -p " skip? " skip
-   if [ ! -d ./clusters_$name1 ] ; then
-      mkdir clusters_$name1
+   if [ ! -d ./clusters_$nameprod2 ] ; then
+      mkdir clusters_$nameprod2
    fi
-   cd clusters_$name1
+   cd clusters_$nameprod2
    # check if the rmsd matrix exists
    while [ ! -f ./rmsd-matrix.xpm ]
    do
@@ -217,10 +217,10 @@ clusterAnalysis() {
 
 pca() {
    read -e -p " dt? " dt
-   if [ ! -d ./PCA_$name1 ] ; then
-      mkdir PCA_$name1
+   if [ ! -d ./PCA_$nameprod2 ] ; then
+      mkdir PCA_$nameprod2
    fi
-   cd PCA_$name1
+   cd PCA_$nameprod2
    # check if the covariance matrix exists
    while [ ! -f ./covariance.xpm ]
    do
@@ -257,10 +257,10 @@ GGplot() {
 # deprecated will be rewritten fro SAS analysis
 sasAnalysis() {
    # create the pdb directory
-   if [ ! -d ./patches_$name1 ] ; then
-      mkdir patches_$name1
+   if [ ! -d ./patches_$nameprod2 ] ; then
+      mkdir patches_$nameprod2
    fi
-   cd patches_$name1
+   cd patches_$nameprod2
    read -e -p "how long is your simulation? (ps) " simps
    read -e -p "jump? (ps)" jump
    for (( i = 0; i<= simps ; i=i+jump ))
@@ -277,12 +277,13 @@ sasAnalysis() {
 
 ############################ The program begins here ##########################
 
-while getopts "hb:n:t:k:s:f:c:e:" opt; do
+while getopts "hb:n:t:r:k:s:f:c:e:" opt; do
    case $opt in
       h) helpMessage; exit    ;;
       b) cpu=$OPTARG          ;;
       n) name1=$OPTARG        ;;
       t) timens=$OPTARG       ;;
+      r) replica1=$OPTARG     ;;
       k) temp=$OPTARG         ;;
       s) tpr=$OPTARG          ;;
       f) trj=$OPTARG          ;;
@@ -359,7 +360,8 @@ case $choice in
       fi;;
 esac
 
-nameprod="${name1}_${timens}"
+nameprod="${name1}_${replica1}_${timens}"
+nameprod2="${name1}_${replica1}"
 
 case $choice in
    1 )
@@ -382,7 +384,7 @@ case $choice in
       read -e -p "Do you want to rerun the analysis with a different method? [yes/no] " ramen
       while [ "$ramen" == "yes" ] 
       do
-         mv clusters_$name1 clusters"$i"_$name1
+         mv clusters_$nameprod2 clusters"$i"_$nameprod2
          clusterAnalysis
          i++
          read -e -p "Do you want to rerun the analysis with a different method? [yes/no] " ramen
