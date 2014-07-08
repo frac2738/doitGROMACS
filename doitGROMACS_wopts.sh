@@ -59,13 +59,11 @@ EOF
 }
 
 
-# modVim: it takes a text file and it converts all the comment character to "#" using vim (or vi).
+# modVim: it takes a text file and it converts all the comment character to "#" using sed.
 # This is to avoid the use of "@" as formatting character in grace files.
 modVim() {
-   ex $1 << EOEX
-      :%s/@/#/g   # macth (%s) all the "@" and replace them with "#"
-      :wq
-EOEX
+   sed -i 's/@/#/g' "$1" # -i modify and save 
+# > temp.txt && mv temp.txt "$1" OLD SYNTAX 
 }
 
 # inputs: it takes a pdb file and generate all the outputs required for the energy
@@ -133,7 +131,7 @@ npt() {
 
 sim_conditions() {
    # export potential energy, temperature, pressure and density profiles 
-   echo Potential | $path/g_energy -f $energy -o $nameprod"_potential.xvg"
+   echo Potential | $path/g_energy -f $energy -o $nameprod"_potential.xvg"   
    modVim $nameprod"_potential.xvg"
    echo Temperature | $path/g_energy -f $energy -o $nameprod"_temperature.xvg"
    modVim $nameprod"_temperature.xvg"
@@ -146,10 +144,10 @@ sim_conditions() {
 
 clean_trj() {
    # removing water molecules from the trajectory file
-   echo Protein | $path/trjconv -s "input_"$timens".tpr" -f $nameprod".xtc"    \
+   echo Protein | $path/trjconv -s $tpr -f $trj    \
       -o $nameprod"_only.xtc"
    # removing water molecules from the tpr file 
-   echo Protein | $path/tpbconv -s "input_"$timens".tpr" -o $nameprod"_only.tpr"
+   echo Protein | $path/tpbconv -s $tpr -o $nameprod"_only.tpr"
    # creating a clean .gro file 
    echo Protein | $path/trjconv -s $nameprod"_only.tpr" -f $nameprod"_only.xtc"\
       -o $nameprod"_only.gro" -dump 0
