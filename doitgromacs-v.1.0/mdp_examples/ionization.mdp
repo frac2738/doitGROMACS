@@ -1,0 +1,30 @@
+
+title          = G6PD wt ionization (2bhl.pdb) - trivial parameters
+
+; Run parameters
+integrator     = steep     ; Algorithm options
+nsteps         = 50000     ; maximum number of steps to perform
+
+; Energy minimization
+emtol          = 10.0      ; [kJ/mol/nm] minimization is converged when max force is < emtol (10 is default)
+emstep         = 0.01      ; [nm] maximum step-size
+
+; Output control
+nstxout        = 50000     ; [steps] (100) freq to write coordinates to trajectory, the last are always written
+nstvout        = 50000     ; [steps] (100) freq to write velocities to trajectory, the last are always written
+nstfout        = 50000     ; [steps] (100) freq to write forces to trajectory
+nstlog         = 50000     ; [steps] (100) freq to write energies to log file, the last are always written
+nstenergy      = 50000     ; [steps] (100) write energies to disk every nstenergy steps
+xtc_precision	= 1000	   ; precision to write to xtc trajectory (1000)
+
+; Neighbor searching
+nstlist        = 10        ; [steps] frequence to update neighbor list (10)
+ns_type        = grid      ; method of updating neighbor list
+rlist          = 1.0       ; [nm] cut-off distance for the short-range neighbor list  (1.0)
+rcoulomb       = 1.0       ; [nm] long range electrostatic cut-off (1)
+rvdw           = 1.0       ; [nm] long range Van der Waals cut-off
+coulombtype    = PME
+
+; Periodic boundary conditions
+pbc            = xyz
+

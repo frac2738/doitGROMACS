@@ -1,0 +1,38 @@
+all: no_option
+	@echo "Specify machine [acrm-emerald-lappy-default]"
+
+no_option:
+   
+acrm: 
+	echo "# Gromacs"		>> doitGROMACS.config
+	echo "groPATH='/acrm/usr/local/apps/gromacs/bin'"	>> doitGROMACS.config	
+	echo "# R for acrm17"	>> doitGROMACS.config
+	echo "REXE='/export/francesco/R-3.1.0/bin/R'"	>> doitGROMACS.config	
+	echo "RscriptEXE='/export/francesco/R-3.1.0/bin/Rscript'"	>> doitGROMACS.config
+	echo ""	>> doitGROMACS.config
+	echo "# R for any other machines"	>> doitGROMACS.config
+	echo "#REXE='/usr/bin/R'"	>> doitGROMACS.config	
+	echo "#RscriptEXE='/usr/Rscript'"	>> doitGROMACS.config
+  
+emerald: 
+	echo "# Gromacs"	>> doitGROMACS.config
+	echo "groPATH='/apps/gromacs/4.6.3/bin'"	>> doitGROMACS.config
+
+lappy: 
+	echo "# Gromacs"	>> doitGROMACS.config
+	echo "groPATH='/usr/local/gromacs/bin'"	>> doitGROMACS.config
+	echo "# R"	>> doitGROMACS.config	
+	echo "REXE='/usr/bin/R'"	>> doitGROMACS.config          
+	echo "RscriptEXE='/usr/bin/Rscript'"	>> doitGROMACS.config
+
+standard:
+	echo "# Gromacs"	>> doitGROMACS.config
+	echo "groPATH='/usr/local/gromacs/bin'"	>> doitGROMACS.config
+	echo "# R"	>> doitGROMACS.config	
+	echo "REXE='/usr/bin/R' "	>> doitGROMACS.config         
+	echo "RscriptEXE='/usr/bin/Rscript'"	>> doitGROMACS.config
+
+clean:
+	@echo ""
+	@echo "	Copyright (c) 2013-2014, Francesco Carbone, University College London (UCL)"
+	@echo ""

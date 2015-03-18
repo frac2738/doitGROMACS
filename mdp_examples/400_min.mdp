@@ -1,0 +1,29 @@
+
+title			   			= G6PD wt energy minimization (2bhl.pdb)
+define                  = -DFLEXIBLE   ; include flexible water instead of rigid water
+
+; Run parameters
+integrator    	         = steep        ; Algorithm options
+nsteps              	   = 50000        ; maximum number of steps to perform
+
+; Energy minimization
+emtol               	   = 10.0         ; [kJ/mol/nm] minimization is converged when max force is < emtol (10 is default)
+													; [kJ/mol/nm] stop minimization when the energy changes by less than emtol 
+emstep              	   = 0.01        	; [nm] maximum step-size
+
+; Neighbor searching
+nstlist                 = 10           ; [steps] frequence to update neighbor list (10)
+ns_type              	= grid         ; method of updating neighbor list
+rlist                   = 1.0          ; [nm] cut-off distance for the short-range neighbor list  (1.0)
+rcoulomb                = 1.0          ; [nm] long range electrostatic cut-off (1)
+rvdw                    = 1.0          ; [nm]  long range Van der Waals cut-offf
+
+; Electrostatics
+coulombtype             = PME	      	; treatment of long range electrostatic interactions
+vdwtype                 = cut-off      ; treatment of Van der Waals interactions
+
+; Periodic boundary conditions
+pbc              	      = xyz       
+					
+
+

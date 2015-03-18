@@ -1,0 +1,73 @@
+
+title          		= G6PD wt molecular dynamics (2bhl.pdb) - NPT MD
+define		         = -DPOSRES	; position restrain the protein
+
+; Run parameters
+integrator				= md			; Algorithm options
+nsteps               = 50000		; maximum number of steps to perform [50000 = 100ps]
+dt							= 0.002		; 2 fs = 0.002 ps
+
+; Output control
+													; 0.2 ps = 100 (0.002*100)
+nstxout              = 1000      ; [steps] freq to write coordinates to trajectory, the last coordinates are always written
+nstvout              = 1000      ; [steps] freq to write velocities to trajectory, the last velocities are always written
+nstlog               = 1000      ; [steps] freq to write energies to log file, the last energies are always written
+nstenergy            = 100	      ; [steps] write energies to disk every nstenergy steps
+nstxtcout            = 1000      ; [steps] freq to write coordinates to xtc trajectory
+xtc_precision			= 1000		; precision to write to xtc trajectory (1000 = default)
+xtc_grps					= system		; which coordinate group(s) to write to disk / DEFAULT THE WHOLE SYSTEM IS WRITTEN
+energygrps				= system		; or System / which energy group(s) to writk
+
+; Bond parameters
+continuation			= yes			; restarting from nvt
+constraints				= all-bonds	; Bond types to replace by constraints
+constraint_algorithm	= lincs		; holonomic constraints
+											; shake : slower and less stable than LINCS, but works with angles constraints
+lincs_iter				= 1			; accuracy of LINCS
+lincs_order				= 4			; also related to accuracy
+lincs_warnangle      = 30        ; [degrees] maximum angle that a bond can rotate before LINCS will complain
+
+; Neighborsearching
+ns_type               = grid     ; method of updating neighbor list
+cutoff-scheme	       = Verlet
+nstlist             	 = 10       ; [steps] frequence to update neighbor list (10)
+				                     ; 5 = 10fs
+rlist                 = 1.0      ; [nm] cut-off distance for the short-range neighbor list  (1 default)
+rcoulomb              = 1.0      ; [nm] long range electrostatic cut-off
+rvdw                  = 1.0      ; [nm]  long range Van der Waals cut-off
+
+; Electrostatics
+coulombtype           = PME	   ; treatment of long range electrostatic interactions
+					
+vdwtype					 = cut-off	; treatment of Van der Waals interactions
+
+				
+; Periodic boundary conditions
+pbc                   = xyz      
+
+; Dispersion correction
+DispCorr					 = EnerPres	; appling long range dispersion corrections
+
+; Ewald
+fourierspacing 	    = 0.12		; grid spacing for FFT  - controll the higest magnitude of wave vectors (0.12)
+pme_order             = 4        ; interpolation order for PME, 4 = cubic
+ewald_rtol            = 1e-5     ; relative strength of Ewald-shifted potential at rcoulomb
+
+; Temperature coupling
+tcoupl					 = nose-hoover				; temperature coupling with Nose-Hoover ensemble
+tc_grps					 = Protein Non-Protein
+tau_t						 = 0.4        0.4			; [ps] time constant
+ref_t						 = 400        400			; [K] reference temperature for coupling [310 = 28°C
+
+; Pressure coupling
+pcoupl				    = parrinello-rahman	
+pcoupltype            = isotropic	; uniform scaling of box vect
+tau_p						 = 2.0			; [ps] time constant
+ref_p						 = 1.0			; [bar] reference pressure for coupling
+compressibility		 = 4.5e-5		; [bar^-1] isothermal compressibility of water
+refcoord_scaling		 = com			; have a look at GROMACS documentation 7.3.15
+
+; Velocity generation
+gen_vel					 = no			   ; generate velocities in grompp according to a Maxwell distribution
+
+
