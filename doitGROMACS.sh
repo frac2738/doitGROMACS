@@ -32,7 +32,7 @@ set -e
 #                      configuration file.
 #       |--- doitGROMACS.sh: main script
 #       |--- doiRGROMACS.R : R script used by the ggplot function to plot.
-#       |--- mdp_examples  : directory containing examples of paramenters files
+#       |--- mdp_examples/ : directory containing examples of paramenters files
 #                            used by gromacs to run simulations.
 #
 #------------------------------------------------------------------------------
@@ -454,7 +454,7 @@ gromDSSP() {
   # if -s and -f are not set prompt and exit
   checkTflags
   echo $optionDSSP | $groPATH/do_dssp -ver 1 -f $trj -s $tpr -o $nameprod"_ss.xpm" \
-    -sc $nameprod"_ss_count.xvg" -tu ns -dt $optionDTdssp -b $optionSTARTimeNS  \
+    -sc $nameprod"_ss_count.xvg" -tu ns -dt $optionDTdssp -b $optionSTARTimeNS  
   modVim $nameprod"_ss_count.xvg"
 }
 
@@ -469,11 +469,6 @@ GGplot() {
       -u=$nameprod"_potential.xvg" -p=$nameprod"_pressure.xvg"                 \
       -fb=$nameprod"_rmsf_bb.xvg" -fsc=$nameprod"_rmsf_sc.xvg"
     # rename the outputs
-    mv rmsd.png $name1"_rmsd.png"
-    mv rgyr.png $name1"_rgyr.png" 
-    mv rmsf.png $name1"_rmsf.png"
-    mv simcond.png $name1"_simcond.png"
-    mv ss.png $name1"_ss.png" 
   else 
     error_exit " the function "GGplot" requires a R script located in $DIR."
   fi 
@@ -598,7 +593,12 @@ standard executables locations have been written on doitGROMACS.conf
     ggplot)
         GGplot ;;
     ggplot-bis) # hidden function
-      sim_conditions && rmsdf && gromDSSP && GGplot ;;
+      sim_conditions && rmsdf && gromDSSP && GGplot
+      mv rmsd.png $name1"_rmsd.png"
+      mv rgyr.png $name1"_rgyr.png" 
+      mv rmsf.png $name1"_rmsf.png"
+      mv simcond.png $name1"_simcond.png"
+      mv ss.png $name1"_ss.png" ;;
   esac
   fi
 #----------------------------- The program ends here ---------------------------

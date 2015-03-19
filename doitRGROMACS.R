@@ -26,7 +26,7 @@
 #         - all the xvg files have been generated using GROMACS
 #
 #         If a system differ for all, of some of the conditions listed above,
-#         please do edit this script accordingly.
+#         wait...I'll release a better version at some point in the future.
 #
 #------------------------------------------------------------------------------
 #
@@ -139,7 +139,7 @@ gromacsRMSD <- function(a) {
   ggsave("rmsd.png",height=7,width=11,dpi=300)
 }
 
-if(exists("file.rmsd")) {
+if(exists("file.rmsd") && file.exists(paste(file.rmsd))) {
   editXVGfile(file.rmsd)
   gromacsRMSD(file.rmsd)
 }
@@ -154,15 +154,21 @@ gromacsRGYRATION <- function(a) {
   ggsave("rgyr.png",height=7,width=11,dpi=300)
 }
  
-if(exists("file.rgyr")) {
+if(exists("file.rgyr") && file.exists(paste(file.rgyr))) {
   editXVGfile(file.rgyr)
   gromacsRGYRATION(file.rgyr)
 }
 
-
 #---------------- f() Secondary Structure ----------------
 gromacsSS <- function(a) {
   SStructure.table <- read.table(paste(a),header=F,comment.char="#",sep="",quote="")
+  list.names <- list()
+  for(i in 1:ncol(SStructure.table)) {
+    list.names[i] <- i
+  }
+  # try also con grep to grep the names
+
+  #names(SStructure.table) <- list.names
   names(SStructure.table) <- c("time","Structure","Coil","B-Sheet","B-Bridge",
     "Bend","Turn","A-Helix","5-Helix","3-Helix","Chain_Separator")
   drops <- c("Chain_Separator")
@@ -176,7 +182,7 @@ gromacsSS <- function(a) {
   ggsave("ss.png",height=7,width=11,dpi=300)
 }
 
-if (exists("file.ss")) {
+if (exists("file.ss") && file.exists(paste(file.ss))) {
    editXVGfile(file.ss)
    gromacsSS(file.ss)
 }
@@ -208,7 +214,9 @@ gromacsSimCond <- function(a,b,c,d) {
   ggsave(file="simcond.png",savef ,height=7,width=12,dpi=300)
 }
 
-if (exists("file.potential") && exists("file.temperature") && exists("file.pressure") && exists("file.density")) {
+if (exists("file.potential") && exists("file.temperature") && exists("file.pressure") && exists("file.density") 
+      && file.exists("file.potential") && file.exists("file.temperature") && file.exists("file.pressure") 
+      && exists("file.density")) { 
   editXVGfile(file.potential)
   editXVGfile(file.temperature)
   editXVGfile(file.pressure)
@@ -257,7 +265,7 @@ gromacsRMSF <- function(a,b) {
   ggsave(file="rmsf.png",savef,height=7,width=11,dpi=300)   
 }
 
-if (exists("file.rmsf.bb") & exists("file.rmsf.sc")) {
+if (exists("file.rmsf.bb") && exists("file.rmsf.sc") && file.exists(paste(file.rmsf.bb)) && file.exists(paste(file.rmsf.sc))) {
   editXVGfile(file.rmsf.bb)
   editXVGfile(file.rmsf.sc)
   gromacsRMSF(file.rmsf.bb,file.rmsf.sc)
@@ -290,7 +298,7 @@ gromacsPES <- function(a) {
   ggsave(file="pes.png",height=7,width=11,dpi=300)
 }
 
-if (exists("file.heatmap")) {
+if (exists("file.heatmap") && file.exists(paste(file.heatmap))) {
   gromacsPES(file.heatmap)
 }
 
