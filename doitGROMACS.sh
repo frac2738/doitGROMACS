@@ -35,6 +35,9 @@ set -e
 #       |--- mdp_examples/ : directory containing examples of paramenters files
 #                            used by gromacs to run simulations.
 #
+#
+#   Known bugs: a) ggplot fonts don't render correctly in machines other than acrm
+#             
 #------------------------------------------------------------------------------
 #
 #   Usage:

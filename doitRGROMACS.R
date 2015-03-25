@@ -23,10 +23,12 @@
 #         on G6PD enzyme, which means that:
 #         - the system has two chains
 #         - the system has 958 residues
-#         - all the xvg files have been generated using GROMACS
+#         - all the xvg files have been generated using GROMACS in grace format
 #
 #         If a system differ for all, of some of the conditions listed above,
 #         wait...I'll release a better version at some point in the future.
+#
+# Known bugs: a) ggplot fonts don't render correctly in machines other than acrm
 #
 #------------------------------------------------------------------------------
 #
@@ -100,7 +102,6 @@ if(is.null(argsL$fb)) print("rmsf bb file not supplied") else file.rmsf.bb <- ar
 if(is.null(argsL$fsc)) print("rmsf sc file not supplied") else file.rmsf.sc <- argsDF$V2[which(argsDF$V1 == "fsc")]
 if(is.null(argsL$hm)) print("pes projection file not supplied") else file.heatmap <- argsDF$V2[which(argsDF$V1 == "hm")]
 
-
 #---------------------------------------------
 #---------------- Proper code ----------------
 
@@ -120,18 +121,23 @@ editXVGfile <- function(input) {
 }
 
 #---------------- f() cbind.all ----------------
+# function that adds "NA" to the shorter columns
 cbind.all <- function (...) 
 {
   nm <- list(...)
   nm <- lapply(nm, as.matrix)
   n <- max(sapply(nm, nrow)) 
-  do.call(cbind, lapply(nm, function(x) rbind(x, matrix(, n - 
-    nrow(x), ncol(x)))))
+  do.call(cbind, lapply(nm, function(x) rbind(x, matrix(,n-nrow(x), ncol(x)))))
+}
+
+#---------------- f() read.file ----------------
+read.file <- function(filename) {
+  input.table <- read.table(paste(filename),header=F,comment.char="#", sep="",quote="")
 }
 
 #---------------- f() RMSD ----------------
 gromacsRMSD <- function(a) {
-  rmsd.table <- read.table(paste(a),header=F,comment.char="#", sep="",quote="")
+  rmsd.table <- read.file(a)
   names(rmsd.table) <- c("time","rmsd")
   rmsd.ggplot <- ggplot(rmsd.table,aes(x=rmsd.table$time),environment=environment()) +
     xlab("[ns]") + ylab("[nm]") + ggtitle("rmsd") + geom_line(aes(y=rmsd.table$rmsd))  +
@@ -146,7 +152,7 @@ if(exists("file.rmsd") && file.exists(paste(file.rmsd))) {
 
 #---------------- f() Gyration radius ----------------
 gromacsRGYRATION <- function(a) {
-  rgyr.table <- read.table(paste(a),header=F,comment.char="#",sep="",quote="")
+  rgyr.table <- read.file(a)
   names(rgyr.table) <- c("time","rgyr")
   rgyr.ggplot <- ggplot(rgyr.table,aes(x=rgyr.table$time),environment=environment()) +
     xlab("[ps]") + ylab("[nm]") + ggtitle("gyration radius") + geom_line(aes(y=rgyr.table$rgyr)) + 
@@ -161,20 +167,32 @@ if(exists("file.rgyr") && file.exists(paste(file.rgyr))) {
 
 #---------------- f() Secondary Structure ----------------
 gromacsSS <- function(a) {
-  SStructure.table <- read.table(paste(a),header=F,comment.char="#",sep="",quote="")
-  list.names <- list()
-  for(i in 1:ncol(SStructure.table)) {
-    list.names[i] <- i
-  }
-  # try also con grep to grep the names
-
-  #names(SStructure.table) <- list.names
-  names(SStructure.table) <- c("time","Structure","Coil","B-Sheet","B-Bridge",
-    "Bend","Turn","A-Helix","5-Helix","3-Helix","Chain_Separator")
+  SStructure.table <- read.file(a)
+  #SStructure.table <- read.table(paste(a),header=F,comment.char="#",sep="",quote="")
+  lst <- Filter(function(u) grepl('^# s[0-9]+', u),readLines(paste(a)))
+  grep.names <- gsub('.*\"(.*)\".*','\\1',lst)
+  # grep.list <- grep('# s[0-9] [a-z]+ "([A-z0-9]+)"',readLines("136cr1_150_ss_count.xvg"),perl=T,value=T)
+  names(SStructure.table) <- c("time",grep.names)
   drops <- c("Chain_Separator")
   SStructure.table <- SStructure.table[,!names(SStructure.table) %in% drops]
+  
   SStructure.table <- melt(SStructure.table,id.vars="time")
+  
+  COMMENT <- function() {
+    list.names <- list()
+    for(i in 1:ncol(SStructure.table)) {
+      list.names[i] <- i
+    }
+    list.names[length(list.names)] <- NULL
+    names(SStructure.table) <- c("time",list.names)
 
+    # this is the old way in which I manually specify all the names
+    names(SStructure.table) <- c("time","Structure","Coil","B-Sheet","B-Bridge",
+      "Bend","Turn","A-Helix","5-Helix","3-Helix","Chain_Separator")
+    drops <- c("Chain_Separator")
+    SStructure.table <- SStructure.table[,!names(SStructure.table) %in% drops]
+  }
+  
   ss.ggplot <- ggplot(SStructure.table,aes(x=SStructure.table$time),environment=environment())+
     xlab("[ns]") + ylab("# residues") + ggtitle("SS %") +  
     geom_line(aes(y=SStructure.table$value,colour=SStructure.table$variable)) +
@@ -188,18 +206,16 @@ if (exists("file.ss") && file.exists(paste(file.ss))) {
 }
 
 #---------------- f() Simulation conditions ----------------
-
 gromacsSimCond <- function(a,b,c,d) {
-  potential <- read.table(paste(a), comment.char="#",header=F,sep="",quote="")
-  temperature <- read.table(paste(b), comment.char="#",header=F,sep="",quote="")
-  pressure <- read.table(paste(c), comment.char="#",header=F,sep="",quote="")
-  density <- read.table(paste(d), comment.char="#",header=F,sep="",quote="")
+  potential <- read.file(a)
+  temperature <- read.file(b)
+  pressure <- read.file(c)
+  density <- read.file(d)
 
-  Simtime <- potential$V1/1000 
+  Simtime <- potential$V1/1000  # from ps to ns 
   pot.ggplot <- ggplot(potential, aes(x=Simtime),environment = environment()) +
     xlab("[ns]") + ylab("[kJ/mol]") + ggtitle("Potential") + geom_line(aes(y=potential$V2)) + 
     theme(axis.title.x=element_blank(),legend.title=element_blank(), title=element_text(size = rel(2)))
-
   temp.ggplot <- ggplot(temperature, aes(x=Simtime),environment = environment()) +
     xlab("[ns]") + ylab("[K]") + ggtitle("Temperature") + geom_line(aes(y=temperature$V2)) + 
     theme(axis.title.x=element_blank(),legend.title=element_blank(), title=element_text(size = rel(2)))
@@ -228,7 +244,7 @@ if (exists("file.potential") && exists("file.temperature") && exists("file.press
 gromacsRMSF <- function(a,b) {
   rmsf.table <- data.frame()
  
-  input.file <- read.table(paste(a),comment.char="#",header=F,sep="",quote="")
+  input.file <- read.file(a)
   names(input.file) <- c("residue","rmsf")
   chainA <- input.file[c(1:479),]
   chainB <- input.file[c(480:958),]
@@ -237,7 +253,7 @@ gromacsRMSF <- function(a,b) {
   tmp.table <- cbind.all(rmsf.table, chainB)
   rmsf.table <- as.data.frame(tmp.table)
   
-  input2.file <- read.table(paste(b),comment.char="#",header=F,sep="",quote="")
+  input2.file <- read.file(b)
   names(input2.file) <- c("residue","rmsf")
   chainA <- input2.file[c(1:479),]
   chainB <- input2.file[c(480:958),]
@@ -259,7 +275,6 @@ gromacsRMSF <- function(a,b) {
     geom_line(aes(y=rmsf.table$scA,colour="chain A")) +
     geom_line(aes(y=rmsf.table$scB,colour="chain B")) + 
     theme(legend.position="none")
-
  
   savef <- arrangeGrob(bb.ggplot,sc.ggplot,ncol=1,main=textGrob("RMSF", gp=gpar(fontsize=85)) )
   ggsave(file="rmsf.png",savef,height=7,width=11,dpi=300)   
