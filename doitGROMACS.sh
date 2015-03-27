@@ -206,10 +206,9 @@ inputs() {
   $groPATH/grompp -f $ioniMDP -c $name1"_sol.pdb" -p topology.top             \
     -o input_ioni.tpr 
   # add ions
-  read -e -p "how many ions do you need? " pioni
   $groPATH/genion -s input_ioni.tpr -p topology.top -o $name1"_ioni.pdb"      \
-    -pname NA -nname CL -np $pioni
-  # for negative ions use the -nn flag
+    -pname NA -nname CL -np $optionIONSpos -nn $optionIONSneg
+  # [-np] for positive and [-nn] for negative 
 }
 
 #--------------------
@@ -470,7 +469,8 @@ GGplot() {
       -g=$nameprod"_rgyration.xvg" -ss=$nameprod"_ss_count.xvg"                \
       -x=$nameprod"_density.xvg" -t=$nameprod"_temperature.xvg"                \
       -u=$nameprod"_potential.xvg" -p=$nameprod"_pressure.xvg"                 \
-      -fb=$nameprod"_rmsf_bb.xvg" -fsc=$nameprod"_rmsf_sc.xvg"
+      -fb=$nameprod"_rmsf_bb.xvg" -fsc=$nameprod"_rmsf_sc.xvg"                 \
+      -hm="pes_profile.txt"
     # rename the outputs
   else 
     error_exit " the function "GGplot" requires a R script located in $DIR."
