@@ -171,7 +171,7 @@ gromacsSS <- function(a) {
   #SStructure.table <- read.table(paste(a),header=F,comment.char="#",sep="",quote="")
   lst <- Filter(function(u) grepl('^# s[0-9]+', u),readLines(paste(a)))
   grep.names <- gsub('.*\"(.*)\".*','\\1',lst)
-  # grep.list <- grep('# s[0-9] [a-z]+ "([A-z0-9]+)"',readLines("136cr1_150_ss_count.xvg"),perl=T,value=T)
+  # grep.list <- grep('# s[0-9] [a-z]+ "([A-z0-9-]+)"',readLines("136cr1_150_ss_count.xvg"),perl=T,value=T)
   names(SStructure.table) <- c("time",grep.names)
   drops <- c("Chain_Separator")
   SStructure.table <- SStructure.table[,!names(SStructure.table) %in% drops]
@@ -231,8 +231,8 @@ gromacsSimCond <- function(a,b,c,d) {
 }
 
 if (exists("file.potential") && exists("file.temperature") && exists("file.pressure") && exists("file.density") 
-      && file.exists("file.potential") && file.exists("file.temperature") && file.exists("file.pressure") 
-      && exists("file.density")) { 
+      && file.exists(paste(file.potential)) && file.exists(paste(file.temperature)) && file.exists(paste(file.pressure)) 
+      && file.exists(paste(file.density))) { 
   editXVGfile(file.potential)
   editXVGfile(file.temperature)
   editXVGfile(file.pressure)
