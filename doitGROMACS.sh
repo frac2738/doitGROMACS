@@ -3,8 +3,8 @@ set -e
 #------------------------------------------------------------------------------
 #
 #   File:       doitGROMACS.sh          
-#   Version:    V1.0.0                                                    
-#   Update:     12.03.15                                                  
+#   Version:    V1.5                                                    
+#   Update:     06.04.15                                                  
 #
 #   Copyright:  (c) Francesco Carbone, UCL, 2015
 #   Author:     Francesco Carbone, UCL                                    
@@ -22,7 +22,7 @@ set -e
 #   Che fa?
 #
 # 
-#   --- doitgromacs-v.1.0
+#   --- doitgromacs-v.1.
 #       |--- INSTALL: useless file
 #       |--- doitGROMACS_default.config: file containing "user dependable" 
 #                                        variables. This file will be copied in
@@ -32,11 +32,9 @@ set -e
 #                      configuration file.
 #       |--- doitGROMACS.sh: main script
 #       |--- doiRGROMACS.R : R script used by the ggplot function to plot.
+#       |--- doiRfunctions.R : R script containing the functions used by doiRGROMACS.R
 #       |--- mdp_examples/ : directory containing examples of paramenters files
 #                            used by gromacs to run simulations.
-#
-#
-#   Known bugs: a) ggplot fonts don't render correctly in machines other than acrm
 #             
 #------------------------------------------------------------------------------
 #
@@ -415,9 +413,8 @@ pca() {
      -s ../$tpr -f ../$trj -first 1 -last 2 -2d 2d-12.xvg
   $groPATH/g_sham -f 2d-12.xvg -ls gibbs-12.xpm -notime
   $groPATH/xpm2ps -f gibbs-12.xpm -o gibbs-12.eps -rainbow red
-  perl /export/francesco/Dropbox/scripts/Rscripts/Rplots/heatmap.pl gibbs-12.xpm
-  $RscriptEXE $optionRprog -hm=pes_profile.txt  
-  mv pes.png ../$name1"_pes.png"
+  perl $DIR/doitGROMACS_xpm2txt.pl gibbs-12.xpm
+  GGplot
   cd ..
 }
 
@@ -490,7 +487,6 @@ checkFlags() {
 # set the directory from which the script is run & the R script
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 optionRprog="$DIR/doitRGROMACS.R"
-
 #today=$(date +%a-%d-%b' %T')
 
 while getopts "hu:b:n:t:s:f:c:e:" opt; do
