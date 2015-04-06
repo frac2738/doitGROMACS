@@ -465,13 +465,12 @@ GGplot() {
   # function that calls the R script doitRGROMACS.R to plot in ggplot: 
   # rmsd - gyration radius - rmsf - simulation conditions - structure analysis
   if [[ -f $optionRprog ]]; then
-    $RscriptEXE $optionRprog -d=$nameprod"_rmsd.xvg"                           \
+    $RscriptEXE $optionRprog -o=$nameprod -d=$nameprod"_rmsd.xvg"              \
       -g=$nameprod"_rgyration.xvg" -ss=$nameprod"_ss_count.xvg"                \
       -x=$nameprod"_density.xvg" -t=$nameprod"_temperature.xvg"                \
       -u=$nameprod"_potential.xvg" -p=$nameprod"_pressure.xvg"                 \
       -fb=$nameprod"_rmsf_bb.xvg" -fsc=$nameprod"_rmsf_sc.xvg"                 \
       -hm="pes_profile.txt"
-    # rename the outputs
   else 
     error_exit " the function "GGplot" requires a R script located in $DIR."
   fi 
@@ -596,12 +595,7 @@ standard executables locations have been written on doitGROMACS.conf
     ggplot)
         GGplot ;;
     ggplot-bis) # hidden function
-      sim_conditions && rmsdf && gromDSSP && GGplot
-      mv rmsd.png $name1"_rmsd.png"
-      mv rgyr.png $name1"_rgyr.png" 
-      mv rmsf.png $name1"_rmsf.png"
-      mv simcond.png $name1"_simcond.png"
-      mv ss.png $name1"_ss.png" ;;
+      sim_conditions && rmsdf && gromDSSP && GGplot ;;
   esac
   fi
 #----------------------------- The program ends here ---------------------------

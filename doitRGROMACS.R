@@ -1,3 +1,4 @@
+#! /export/francesco/R-3.1.0/bin/Rscript
 #------------------------------------------------------------------------------
 #
 # File:       Rplot_gromacs.R          
@@ -37,6 +38,9 @@
 #                  [-ss=xx] [-fb=xx] [-fsc=xx] [-help]
 #
 # -help   -  ask for help
+# -h      -  read hight
+# -w      -  read width
+# -dpi    -  read dpi
 # -x      -  read density file (.xvg)
 # -t      -  read temperature file (.xvg)
 # -u      -  read potential energy file (.xvg)
@@ -65,17 +69,21 @@ if ("-help" %in% args) {
     Usage:   Rscript doitRGROMACS.R [-x=xx] [-t=xx] [-u=xx] [-p=xx] [-d=xx]
                   [-g=xx] [-ss=xx] [-fb=xx] [-fsc=xx] [-help]
 
-      -help   -  ask for help
-      -u      -  read potential energy file (.xvg)
-      -t      -  read temperature file (.xvg)
-      -p      -  read pressure file (.xvg)
-      -x      -  read density file (.xvg)
-      -d      -  read rmsd file (.xvg)
-      -g      -  read gyration radius file (.xvg)
-      -ss     -  read secondary structure file (.xvg)
-      -fb     -  read rmsf file [backbone] (.xvg)
-      -fsc    -  read rmsf file [side chains] (.xvg)
-      -hm     -  read pes projection (heat map)
+      -help   - ask for help
+      -o      - desired output
+      -u      - read potential energy file (.xvg)
+      -t      - read temperature file (.xvg)
+      -p      - read pressure file (.xvg)
+      -x      - read density file (.xvg)
+      -d      - read rmsd file (.xvg)
+      -g      - read gyration radius file (.xvg)
+      -ss     - read secondary structure file (.xvg)
+      -fb     - read rmsf file [backbone] (.xvg)
+      -fsc    - read rmsf file [side chains] (.xvg)
+      -hm     - read pes projection (heat map)
+      -h      - set image height in
+      -w      - set image width in
+      -dpi    - set image dpi
 
       NOTE1 :  flags x,t,u,p are read together, the absence of one (or more) of
                them will cause the function to exit without plotting anything. 
@@ -87,6 +95,7 @@ if ("-help" %in% args) {
 ## Parse the arguments in the form of -arg=value
 parseArgs <- function(x) strsplit (sub("^-","",x), "=")   # split flags from values
 argsDF <- as.data.frame(do.call("rbind", parseArgs(args)))
+#argsL <- as.list(as.character(argsDF$V2))
 argsL <- as.list(as.character(argsDF$V2))
 names(argsL) <- (argsDF$V1)
 
@@ -101,219 +110,85 @@ if(is.null(argsL$ss)) print("secondary structure count file not supplied") else 
 if(is.null(argsL$fb)) print("rmsf bb file not supplied") else file.rmsf.bb <- argsDF$V2[which(argsDF$V1 == "fb")]
 if(is.null(argsL$fsc)) print("rmsf sc file not supplied") else file.rmsf.sc <- argsDF$V2[which(argsDF$V1 == "fsc")]
 if(is.null(argsL$hm)) print("pes projection file not supplied") else file.heatmap <- argsDF$V2[which(argsDF$V1 == "hm")]
+if(is.null(argsL$o)) print("output not supplied") else output <- argsDF$V2[which(argsDF$V1 == "o")]
+
+if(is.null(argsL$dpi) && is.null(argsL$ht) && is.null(argsL$wt)) { 
+  print("no dimensions set: using standard values (height=7,width=11,dpi=300)") 
+  ggheight <- 7
+  ggwidth <- 11
+  ggdpi <- 300
+} else {
+  ggheight <- argsDF$V2[which(argsDF$V1 == "ht")]
+  ggwidth <- argsDF$V2[which(argsDF$V1 == "wt")]
+  ggdpi <- argsDF$V2[which(argsDF$V1 == "dpi")]
+}
 
 #---------------------------------------------
-#---------------- Proper code ----------------
+#---------------- proper code ----------------
 
-# load libraries
-library("ggplot2")
-library("gridExtra")
-library("reshape2")
-
-#---------------- f() edit xvg ----------------
-# function that replaces all @ with # given a file
-editXVGfile <- function(input) {
-  for(f in input) {
-    x <- readLines(f)
-    y <- gsub("@","#",x)
-    cat(y,file=f,sep="\n") 
-  }
+# function that extract the current directory and source doitRfunctions.R
+locate.funtion.file <- function() {
+  initial.options <- commandArgs(trailingOnly = FALSE)
+  file.arg.name <- "--file="
+  script.name <- sub(file.arg.name, "", initial.options[grep(file.arg.name, initial.options)])
+  script.basename <- dirname(script.name)
+  function.file <- paste(sep="/", script.basename, "doitRfunctions.R")
+  print(paste("Sourcing",function.file,"from",script.name))
+  source(function.file)
 }
 
-#---------------- f() cbind.all ----------------
-# function that adds "NA" to the shorter columns
-cbind.all <- function (...) 
-{
-  nm <- list(...)
-  nm <- lapply(nm, as.matrix)
-  n <- max(sapply(nm, nrow)) 
-  do.call(cbind, lapply(nm, function(x) rbind(x, matrix(,n-nrow(x), ncol(x)))))
-}
+# source all the functions & load the libraries
+locate.funtion.file()
+library("ggplot2"); library("gridExtra"); library("reshape2")
 
-#---------------- f() read.file ----------------
-read.file <- function(filename) {
-  input.table <- read.table(paste(filename),header=F,comment.char="#", sep="",quote="")
-}
-
-#---------------- f() RMSD ----------------
-gromacsRMSD <- function(a) {
-  rmsd.table <- read.file(a)
-  names(rmsd.table) <- c("time","rmsd")
-  rmsd.ggplot <- ggplot(rmsd.table,aes(x=rmsd.table$time),environment=environment()) +
-    xlab("[ns]") + ylab("[nm]") + ggtitle("rmsd") + geom_line(aes(y=rmsd.table$rmsd))  +
-    theme(legend.title=element_blank(), title = element_text(size = rel(2)))
-  ggsave("rmsd.png",height=7,width=11,dpi=300)
-}
-
-if(exists("file.rmsd") && file.exists(paste(file.rmsd))) {
-  editXVGfile(file.rmsd)
-  gromacsRMSD(file.rmsd)
-}
-
-#---------------- f() Gyration radius ----------------
-gromacsRGYRATION <- function(a) {
-  rgyr.table <- read.file(a)
-  names(rgyr.table) <- c("time","rgyr")
-  rgyr.ggplot <- ggplot(rgyr.table,aes(x=rgyr.table$time),environment=environment()) +
-    xlab("[ps]") + ylab("[nm]") + ggtitle("gyration radius") + geom_line(aes(y=rgyr.table$rgyr)) + 
-    theme(legend.title=element_blank(), title = element_text(size = rel(2)))
-  ggsave("rgyr.png",height=7,width=11,dpi=300)
-}
- 
-if(exists("file.rgyr") && file.exists(paste(file.rgyr))) {
-  editXVGfile(file.rgyr)
-  gromacsRGYRATION(file.rgyr)
-}
-
-#---------------- f() Secondary Structure ----------------
-gromacsSS <- function(a) {
-  SStructure.table <- read.file(a)
-  #SStructure.table <- read.table(paste(a),header=F,comment.char="#",sep="",quote="")
-  lst <- Filter(function(u) grepl('^# s[0-9]+', u),readLines(paste(a)))
-  grep.names <- gsub('.*\"(.*)\".*','\\1',lst)
-  # grep.list <- grep('# s[0-9] [a-z]+ "([A-z0-9-]+)"',readLines("136cr1_150_ss_count.xvg"),perl=T,value=T)
-  names(SStructure.table) <- c("time",grep.names)
-  drops <- c("Chain_Separator")
-  SStructure.table <- SStructure.table[,!names(SStructure.table) %in% drops]
-  
-  SStructure.table <- melt(SStructure.table,id.vars="time")
-  
-  COMMENT <- function() {
-    list.names <- list()
-    for(i in 1:ncol(SStructure.table)) {
-      list.names[i] <- i
-    }
-    list.names[length(list.names)] <- NULL
-    names(SStructure.table) <- c("time",list.names)
-
-    # this is the old way in which I manually specify all the names
-    names(SStructure.table) <- c("time","Structure","Coil","B-Sheet","B-Bridge",
-      "Bend","Turn","A-Helix","5-Helix","3-Helix","Chain_Separator")
-    drops <- c("Chain_Separator")
-    SStructure.table <- SStructure.table[,!names(SStructure.table) %in% drops]
-  }
-  
-  ss.ggplot <- ggplot(SStructure.table,aes(x=SStructure.table$time),environment=environment())+
-    xlab("[ns]") + ylab("# residues") + ggtitle("SS %") +  
-    geom_line(aes(y=SStructure.table$value,colour=SStructure.table$variable)) +
-    theme(legend.title=element_blank())
-  ggsave("ss.png",height=7,width=11,dpi=300)
-}
-
-if (exists("file.ss") && file.exists(paste(file.ss))) {
-   editXVGfile(file.ss)
-   gromacsSS(file.ss)
-}
-
-#---------------- f() Simulation conditions ----------------
-gromacsSimCond <- function(a,b,c,d) {
-  potential <- read.file(a)
-  temperature <- read.file(b)
-  pressure <- read.file(c)
-  density <- read.file(d)
-
-  Simtime <- potential$V1/1000  # from ps to ns 
-  pot.ggplot <- ggplot(potential, aes(x=Simtime),environment = environment()) +
-    xlab("[ns]") + ylab("[kJ/mol]") + ggtitle("Potential") + geom_line(aes(y=potential$V2)) + 
-    theme(axis.title.x=element_blank(),legend.title=element_blank(), title=element_text(size = rel(2)))
-  temp.ggplot <- ggplot(temperature, aes(x=Simtime),environment = environment()) +
-    xlab("[ns]") + ylab("[K]") + ggtitle("Temperature") + geom_line(aes(y=temperature$V2)) + 
-    theme(axis.title.x=element_blank(),legend.title=element_blank(), title=element_text(size = rel(2)))
-  press.ggplot <- ggplot(pressure, aes(x=Simtime),environment = environment()) +
-    xlab("[ns]") + ylab("[bar]") + ggtitle("Pressure") + geom_line(aes(y=pressure$V2)) + 
-    theme(legend.title=element_blank(), title=element_text(size = rel(2)))
-  desity.ggplot <- ggplot(density, aes(x=Simtime),environment = environment()) +
-    xlab("[ns]") + ylab("[kg/m^3]") + ggtitle("density") +
-    geom_line(aes(y=density$V2)) + theme(legend.title=element_blank(), title=element_text(size = rel(2)))
-
-  savef <- arrangeGrob(pot.ggplot,temp.ggplot,press.ggplot,desity.ggplot,ncol=2, main=textGrob("Simulation Conditions", gp=gpar(fontsize=85)))
-  ggsave(file="simcond.png",savef ,height=7,width=12,dpi=300)
-}
-
+# plot simulation conditions
 if (exists("file.potential") && exists("file.temperature") && exists("file.pressure") && exists("file.density") 
       && file.exists(paste(file.potential)) && file.exists(paste(file.temperature)) && file.exists(paste(file.pressure)) 
       && file.exists(paste(file.density))) { 
-  editXVGfile(file.potential)
-  editXVGfile(file.temperature)
-  editXVGfile(file.pressure)
-  editXVGfile(file.density)
-  gromacsSimCond(file.potential,file.temperature,file.pressure,file.density)
+  editXVGfile(file.potential); editXVGfile(file.temperature); editXVGfile(file.pressure); editXVGfile(file.density)
+  output.simcond <- paste0(output,"_simcond.png")
+  gromacsSimCond(file.potential,file.temperature,file.pressure,file.density,output.simcond,ggheight,ggwidth,ggdpi)
 }
 
-#---------------- f() RMSF ----------------
-gromacsRMSF <- function(a,b) {
-  rmsf.table <- data.frame()
- 
-  input.file <- read.file(a)
-  names(input.file) <- c("residue","rmsf")
-  chainA <- input.file[c(1:479),]
-  chainB <- input.file[c(480:958),]
-  tmp.table <- cbind.all(rmsf.table, chainA)
-  rmsf.table <- as.data.frame(tmp.table)
-  tmp.table <- cbind.all(rmsf.table, chainB)
-  rmsf.table <- as.data.frame(tmp.table)
-  
-  input2.file <- read.file(b)
-  names(input2.file) <- c("residue","rmsf")
-  chainA <- input2.file[c(1:479),]
-  chainB <- input2.file[c(480:958),]
-  tmp2.table <- cbind.all(rmsf.table, chainA)
-  rmsf.table <- as.data.frame(tmp2.table)
-  tmp2.table <- cbind.all(rmsf.table, chainB)
-  rmsf.table <- as.data.frame(tmp2.table)
-
-  names(rmsf.table) <- c("residue","bbA","residue2","bbB","residue3","scA","residue4","scB")
-
-  bb.ggplot <- ggplot(rmsf.table,aes(x=rmsf.table$residue),environment = environment()) 
-  bb.ggplot <- bb.ggplot + xlab("residue") + ylab("[nm]") + ggtitle("Backbone") +
-    geom_line(aes(y=rmsf.table$bbA,colour="chain A")) +
-    geom_line(aes(y=rmsf.table$bbB,colour="chain B")) + 
-    theme(legend.position="none")
-
-  sc.ggplot <- ggplot(rmsf.table,aes(x=rmsf.table$residue),environment = environment())
-  sc.ggplot <- sc.ggplot + xlab("residue") + ylab("[nm]") + ggtitle("Side Chain") +
-    geom_line(aes(y=rmsf.table$scA,colour="chain A")) +
-    geom_line(aes(y=rmsf.table$scB,colour="chain B")) + 
-    theme(legend.position="none")
- 
-  savef <- arrangeGrob(bb.ggplot,sc.ggplot,ncol=1,main=textGrob("RMSF", gp=gpar(fontsize=85)) )
-  ggsave(file="rmsf.png",savef,height=7,width=11,dpi=300)   
+# plot rmsd
+if(exists("file.rmsd") && file.exists(paste(file.rmsd))) {
+  editXVGfile(file.rmsd)
+  ggxlab <- grep.labels(file.rmsd)[[1]]; ggylab <- grep.labels(file.rmsd)[[2]]
+  ggtitle <- grep.title(file.rmsd)
+  output.rmsd <- paste0(output,"_rmsd.png")
+  generalplot(file.rmsd,output.rmsd,ggxlab,ggylab,ggtitle,ggheight,ggwidth,ggdpi)
 }
 
+# plot rgyr
+if(exists("file.rgyr") && file.exists(paste(file.rgyr))) {
+  editXVGfile(file.rgyr)
+  ggxlab <- grep.labels(file.rgyr)[[1]]; ggylab <- grep.labels(file.rgyr)[[2]]
+  ggtitle <- grep.title(file.rgyr)
+  output.rgyr <- paste0(output,"_rgyr.png")
+  generalplot(file.rgyr,output.rgyr,ggxlab,ggylab,ggtitle,ggheight,ggwidth,ggdpi)
+}
+
+# plot ss
+if (exists("file.ss") && file.exists(paste(file.ss))) {
+  editXVGfile(file.ss)
+  ggxlab <- grep.labels(file.ss)[[1]]; ggylab <- grep.labels(file.ss)[[2]]
+  ggtitle <- grep.title(file.ss)
+  output.ss <- paste0(output,"_ss.png")
+  gromacsSS(file.ss,output.ss,ggxlab,ggylab,ggtitle,ggheight,ggwidth,ggdpi)
+}
+
+# plot rmsf
 if (exists("file.rmsf.bb") && exists("file.rmsf.sc") && file.exists(paste(file.rmsf.bb)) && file.exists(paste(file.rmsf.sc))) {
-  editXVGfile(file.rmsf.bb)
-  editXVGfile(file.rmsf.sc)
-  gromacsRMSF(file.rmsf.bb,file.rmsf.sc)
+  editXVGfile(file.rmsf.bb); editXVGfile(file.rmsf.sc)
+  ggxlab <- grep.labels(file.rmsf.bb)[[1]]; ggylab <- grep.labels(file.rmsf.bb)[[2]]
+  ggtitle <- grep.title(file.rmsf.bb)
+  output.rmsf <- paste0(output,"_rmsf.png")
+  gromacsRMSF(file.rmsf.bb,file.rmsf.sc,output.rmsf,ggxlab,ggylab,ggtitle,ggheight,ggwidth,ggdpi)
 }
 
-#---------------- f() HEAT MAP ----------------
-
-gromacsPES <- function(a) {
-  heatdata <- read.table(paste(a),header=F,sep="",quote="",blank.lines.skip=F)
-  x.coordinate <- heatdata[1,]
-  names(x.coordinate) <- NULL
-  x.coordinate <- unlist(c(x.coordinate))
-  x.coordinate <- x.coordinate[1:length(x.coordinate)-1]
-  
-  y.coordinate <- heatdata[2,]
-  names(y.coordinate) <- NULL
-  y.coordinate <- unlist(c(y.coordinate))
-  y.coordinate <- y.coordinate[1:length(y.coordinate)-1]
-
-  energy.table <- heatdata[(3:34),] 
-  names(energy.table) <- x.coordinate
-  energy.table[is.na(energy.table)] <- max(energy.table[,1])
-  energy.table$y <- y.coordinate
-  longenergy <- melt(energy.table,id="y")
-  
-  ggheat <- ggplot(longenergy,aes(x=longenergy$variable,y=longenergy$y, fill=value),environment = environment())
-  ggheat <- ggheat + geom_tile()+ theme(axis.text.x=element_blank(),axis.text.y=element_blank()) + 
-    xlab("pc1") + ylab("pc2") + ggtitle("Gibbs Energy Landscape [kJ/mol]") 
-    #scale_fill_gradient(low="blue",high="red")
-  ggsave(file="pes.png",height=7,width=11,dpi=300)
-}
-
+# plot heat map
 if (exists("file.heatmap") && file.exists(paste(file.heatmap))) {
-  gromacsPES(file.heatmap)
+  output.pes <- paste0(output,"_pes.png")
+  gromacsPES(file.heatmap,output.pes,ggheight,ggwidth,ggdpi)
 }
 
