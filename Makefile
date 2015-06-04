@@ -1,42 +1,40 @@
 all: no_option
-	@echo "Specify machine [acrm-emerald-lappy-default]"
 
 no_option:
+	@echo "Specify machine [acrm-emerald-lappy-default]"
    
 acrm: 
-	#cp doitGROMACS_default.config doitGROMACS.config
-	echo "# Gromacs"	>> doitGROMACS.config
-	echo "groPATH='/acrm/usr/local/apps/gromacs/bin'"	>> doitGROMACS.config
-	echo "# R"														>> doitGROMACS.config
-	echo "REXE='/export/francesco/R-3.1.0/bin/R'"     	>> doitGROMACS.config	
-	echo "RscriptEXE='/export/francesco/R-3.1.0/bin/Rscript'" >> doitGROMACS.config
-	echo "# R scripts directories"							>> doitGROMACS.config
-	echo "rScriptsDIR='/export/francesco/Dropbox/scripts/Rscripts/Rplots'" >> doitGROMACS.config
-
+	echo "# Gromacs"		>> doitGROMACS.config
+	echo "groPATH4='/acrm/usr/local/apps/gromacs/bin'"	>> doitGROMACS.config	
+	echo "groPATH5='/acrm/usr/local/apps/gromacs-5.0.4/bin'"	>> doitGROMACS.config	
+	echo "# R for acrm17"	>> doitGROMACS.config
+	echo "REXE='/export/francesco/R-3.1.0/bin/R'"	>> doitGROMACS.config	
+	echo "RscriptEXE='/export/francesco/R-3.1.0/bin/Rscript'"	>> doitGROMACS.config
+	echo ""	>> doitGROMACS.config
+	echo "# R for any other machines"	>> doitGROMACS.config
+	echo "#REXE='/usr/bin/R'"	>> doitGROMACS.config	
+	echo "#RscriptEXE='/usr/Rscript'"	>> doitGROMACS.config
+  
 emerald: 
-	#cp doitGROMACS_default.config doitGROMACS.config
-	echo "# Gromacs"										>> doitGROMACS.config
-	echo "groPATH='/apps/gromacs/4.6.3/bin'"		>> doitGROMACS.config
+	echo "# Gromacs"	>> doitGROMACS.config
+	echo "groPATH4='/apps/gromacs/4.6.3/bin'"	>> doitGROMACS.config
+	echo "groPATH5='/apps/gromacs/5.0.4/bin'"	>> doitGROMACS.config
 
 lappy: 
-	#cp doitGROMACS_default.config doitGROMACS.config
-	echo "# Gromacs"										>> doitGROMACS.config
-	echo "groPATH='/usr/local/gromacs/bin'"  		>> doitGROMACS.config
-	echo "# R"												>> doitGROMACS.config
-	echo "REXE='/usr/bin/R'"     						>> doitGROMACS.config                            
-	echo "RscriptEXE='/usr/bin/Rscript'"			>> doitGROMACS.config
-	echo "# R scripts directories"					>> doitGROMACS.config
-	echo "rScriptsDIR='~/Dropbox/scripts/Rscripts/Rplots'"	>> doitGROMACS.config
+	echo "# Gromacs"	>> doitGROMACS.config
+	echo "groPATH='/usr/local/gromacs/bin'"	>> doitGROMACS.config
+	echo "# R"	>> doitGROMACS.config	
+	echo "REXE='/usr/bin/R'"	>> doitGROMACS.config          
+	echo "RscriptEXE='/usr/bin/Rscript'"	>> doitGROMACS.config
 
 standard:
-	#cp doitGROMACS_default.config doitGROMACS.config
-	echo "# Gromacs"										>> doitGROMACS.config
-	echo "groPATH='/usr/local/gromacs/bin'"		>> doitGROMACS.config
-	echo "# R"												>> doitGROMACS.config	
-	echo "REXE='/usr/bin/R' "							>> doitGROMACS.config                               
-	echo "RscriptEXE='/usr/bin/Rscript'" 			>> doitGROMACS.config
-	echo "# R scripts directories"					>> doitGROMACS.config
-	echo "rScriptsDIR='./'"								>> doitGROMACS.config
+	echo "# Gromacs"	>> doitGROMACS.config
+	echo "groPATH='/usr/local/gromacs/bin'"	>> doitGROMACS.config
+	echo "# R"	>> doitGROMACS.config	
+	echo "REXE='/usr/bin/R' "	>> doitGROMACS.config         
+	echo "RscriptEXE='/usr/bin/Rscript'"	>> doitGROMACS.config
 
 clean:
-	echo "Copyright (c) 2013-2014, Francesco Carbone, University College London (UCL)"
+	@echo ""
+	@echo "	Copyright (c) 2013-2015, Francesco Carbone, University College London (UCL)"
+	@echo ""

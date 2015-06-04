@@ -21,13 +21,12 @@ set -e
 #   Decription:
 #   Che fa?
 #
-# 
-#   --- doitgromacs-v.1.
+#   --- doitgromacs-v.1.5
 #       |--- INSTALL: useless file
 #       |--- doitGROMACS_default.config: file containing "user dependable" 
 #                                        variables. This file will be copied in
 #                                        the working directory, where the user
-#                                        is advise to check and edit.
+#                                        is advise to check and edit it.
 #       |--- Makefile: used to add the paths to the required binaries to the 
 #                      configuration file.
 #       |--- doitGROMACS.sh: main script
@@ -36,11 +35,14 @@ set -e
 #       |--- mdp_examples/ : directory containing examples of paramenters files
 #                            used by gromacs to run simulations.
 #             
+#       PLANNED UPGRADES: - Comparison in R
+#
 #------------------------------------------------------------------------------
 #
 #   Usage:
 #   ./doitGROMACS.sh [-u xxx] [-b xxx] [-n xxx] [-t xxx] [-k xxx] [-s xxx] 
 #                    [-f xxx] [-c xxx] [-e xxx]
+#   -g              - if present gromacs 5 syntax will be used
 #   -u              - Analyse an unrest trajectory
 #   -b              - Set binary location (gromacs and R)
 #   -n              - Set the name
@@ -99,7 +101,7 @@ helpMessage() {
     ---------------------------------------------------------------------------
     -[no]h   bool     yes         Print help info
     -u       string   txt file    Analyses of an unres trajectory
-                                          
+    -g       bool     no          Set gromacs 5 syntax
                   
                                           [ALWAYS REQUIRED in absence of -u]
     ---------------------------------------------------------------------------
@@ -130,24 +132,26 @@ EOF
 #------------
 doitOptions() {
    cat <<EOF
-
                                  -----------
     ---------------------------- doitOPTIONS ----------------------------
                                  -----------
 
-        all      - Starting from scratch ** 
-        emin     - Starting from E-minimization ** 
-        nvt      - Starting from NVT **
-        npt      - Starting from NPT **
-        h20      - Remove water from a trajectory file 
-        cond     - Check the simulation conditions (U-T-P-density)
-        rmsdfg   - Calculate RMSD, GYRATION RADIUS and RMSF [backbone & sidechains] 
-        cluster  - Cluster analysis 
-        pca      - PCA analysis 
-        sas      - SAS analysis  
-        dssp     - DSSP analysis
-        ggplot   - Plot with ggplot (R)
-        hb       - Hydrogen bonds analysis [not yet implemented]
+        all           - Starting from scratch ** 
+        emin          - Starting from E-minimization ** 
+        nvt           - Starting from NVT **
+        npt           - Starting from NPT **
+        h20           - Remove water from a trajectory file 
+        cond          - Check the simulation conditions (U-T-P-density)
+        rmsdfg        - Calculate RMSD, GYRATION RADIUS and RMSF [backbone & sidechains] 
+        cluster       - Cluster analysis 
+        pca           - PCA analysis 
+        sas           - SAS analysis  
+        sas-sites     - SAS analysis on only the binding sites  
+        dssp          - DSSP analysis
+        ggplot        - Plot with ggplot (R)
+        hb            - Hydrogen bonds analysis [not yet implemented]
+        hb-sites      - Hydrogen bonds analysis on binding sites
+        indexCreator  - Create binding sites index for the mutant
 
     --------------------------------------------------------------------
                                -----------
@@ -166,7 +170,47 @@ doitOptions() {
 
 EOF
 }
+
+gromacs_ver_mex() {
+  cat <<EOF
+                        -----------------------------
+    ------------------- GROMACS $gromacs_ver syntax will be used -------------------
+                        -----------------------------
+EOF
+}
+
+setGROMACSbinaries() {
+  if [ -n "${gromacs_ver}" ]; then
+    groPATH=$groPATH5
+    gromacs_ver_mex 
+    pdb2gmx='gmx pdb2gmx'; editconf='gmx editconf';
+    genbox='gmx solvate'; grompp='gmx grompp'; genion='gmx genion'
+    g_energy='gmx energy'; trjconv='gmx trjconv'; tpbconv='gmx convert-tpr'
+    g_rms='gmx rms'; g_rmsf='gmx rmsf'; g_gyrate='gmx gyrate'
+    xpm2ps='gmx xpm2ps'; g_cluster='gmx cluster'; g_covar='gmx covar'
+    g_anaeig='gmx anaeig'; g_analyze='gmx analyze'; g_sham='gmx sham'
+    g_sas='gmx sasa'; g_hbond='gmx hbond'; do_dssp='gmx do_dssp' 
+  else
+    groPATH=$groPATH4
+    gromacs_ver='4.6'; gromacs_ver_mex
+    pdb2gmx='pdb2gmx'; editconf='editconf';
+    genbox='genbox'; grompp='grompp'; genion='genion'
+    g_energy='g_energy'; trjconv='trjconv'; tpbconv='tpbconv'
+    g_rms='g_rms'; g_rmsf='g_rmsf'; g_gyrate='g_gyrate'
+    xpm2ps='xpm2ps'; g_cluster='g_cluster'; g_covar='g_covar'
+    g_anaeig='g_anaeig'; g_analyze='g_analyze'; g_sham='g_sham'
+    g_sas='g_sas'; g_hbond='g_hbond'; do_dssp='do_dssp'  
+  fi
+}
    
+checkFlags() {
+  # check the definition of -b and -n 
+  if [[ -z "${cpu+x}" || -z "${name1+x}" ]]; then
+    helpMessage
+    error_exit "Execution halted! the script was called without any flags." 
+  fi 
+}
+
 #--------------
 # description : this function takes a ".stat" file from an UNRES simulation and 
 #               passes it to an R script for analyses.
@@ -181,6 +225,12 @@ modVim() {
   sed -i 's/@/#/g' "$1" # -i modify and save 
 }
 
+indexCreator() {
+  (echo "r 171 263 201 202 205 395 365 239 360 258"; echo "name 10 G6P"; echo "q") | make_ndx -f $nameprod.gro -o $name1.ndx
+  (echo "r 38 43 41 40 73 72 112 141 143 146 144 170 172 171"; echo "name 11 Co-enzyme"; echo "q") | make_ndx -f $nameprod.gro -n $name1.ndx -o $name1.ndx
+  (echo "r 357 487 238 363 364 366 393 423 401 509 421 507 403 370 503 493"; echo "name 12 strNADP+"; echo "q") | make_ndx -f $nameprod.gro -n $name1.ndx -o $name1.ndx
+}
+
 #-------
 # description : It prepares all the input files required for a simulation. 
 #               Using a force field and a water model, it first generates a 
@@ -193,18 +243,28 @@ inputs() {
     helpMessage; error_exit " execution halted: a pdb file is required (-c)"
   fi 
   # create a topology file
-  (echo "$optionFF"; echo "$optionWM") | $groPATH/pdb2gmx -f $pdb1             \
+  (echo "$optionFF"; echo "$optionWM") | $groPATH/$pdb2gmx -f $pdb1             \
     -o $name1"_processed.pdb" -p topology.top -ignh -v
   # create a box
-  $groPATH/editconf -f $name1"_processed.pdb" -o $name1"_inbox.pdb"           \
+  $groPATH/$editconf -f $name1"_processed.pdb" -o $name1"_inbox.pdb"           \
     -bt $optionBOX -d $optionDISTEDGE -c
   # solfatate the box
-  $groPATH/genbox -cp $name1"_inbox.pdb" -cs spc216.gro -o $name1"_sol.pdb"   \
+  $groPATH/$genbox -cp $name1"_inbox.pdb" -cs spc216.gro -o $name1"_sol.pdb"   \
     -p topology.top
-  $groPATH/grompp -f $ioniMDP -c $name1"_sol.pdb" -p topology.top             \
+  $groPATH/$grompp -f $ioniMDP -c $name1"_sol.pdb" -p topology.top             \
     -o input_ioni.tpr 
+  read -e -p "Specify the number of ions to be add added to the system in the form of [+/- n°]
+(e.g. + 12 or - 23) " number_ioni
+  split_ioni=( $number_ioni )
+  if [ ${split_ioni[0]} == "+" ]; then
+    optionIONSpos=${split_ioni[1]}
+    optionIONSneg='0'
+  else 
+    optionIONSneg=${split_ioni[1]}
+    optionIONSpos='0'
+  fi 
   # add ions
-  $groPATH/genion -s input_ioni.tpr -p topology.top -o $name1"_ioni.pdb"      \
+  $groPATH/$genion -s input_ioni.tpr -p topology.top -o $name1"_ioni.pdb"      \
     -pname NA -nname CL -np $optionIONSpos -nn $optionIONSneg
   # [-np] for positive and [-nn] for negative 
 }
@@ -213,11 +273,11 @@ inputs() {
 # description : It minimises a structure 
 # requirements: ioni.pdb + topology.top + min.mdp  
 energy_minimization() {
-  $groPATH/grompp -f $minMDP -c $name1"_ioni.pdb" -p topology.top              \
+  $groPATH/$grompp -f $minMDP -c $name1"_ioni.pdb" -p topology.top              \
     -o input_min.tpr
   $groPATH/mdrun -s input_min.tpr -deffnm $name1"_min" -v
   # export the potential energy profile
-  echo Potential | $groPATH/g_energy -f $name1"_min.edr" -o $name1"_potential.xvg"
+  echo Potential | $groPATH/$g_energy -f $name1"_min.edr" -o $name1"_potential.xvg"
   modVim $name1"_potential.xvg"
 }  
 
@@ -225,11 +285,11 @@ energy_minimization() {
 # description : It runs a NVT equilibration (constant volume and temperature)
 # requirements: nvt.mdp + min.gro + topology.top
 nvt() {
-   $groPATH/grompp -f $nvtMDP -c $name1"_min.gro" -p topology.top              \
+   $groPATH/$grompp -f $nvtMDP -c $name1"_min.gro" -p topology.top              \
       -o input_nvt.tpr
    $groPATH/mdrun -s input_nvt.tpr -deffnm $name1"_nvt" -v
    # export the temperature profile 
-   echo Temperature | $groPATH/g_energy -f $name1"_nvt.edr" -o $name1"_temperature.xvg"
+   echo Temperature | $groPATH/$g_energy -f $name1"_nvt.edr" -o $name1"_temperature.xvg"
    modVim $name1"_temperature.xvg"
 } 
 
@@ -237,14 +297,14 @@ nvt() {
 # description : It runs a NPT equilibration (constant pressure)
 # requirements: npt.mdp + nvt.gro + topology.top
 npt() {
-   $groPATH/grompp -f $nptMDP -c $name1"_nvt.gro" -p topology.top              \
+   $groPATH/$grompp -f $nptMDP -c $name1"_nvt.gro" -p topology.top              \
       -o input_npt.tpr
    $groPATH/mdrun -s input_npt.tpr -deffnm $name1"_npt" -v  
    # export the pressure profile 
-   echo Pressure | $groPATH/g_energy -f $name1"_npt.edr" -o $name1"_pressure.xvg"
+   echo Pressure | $groPATH/$g_energy -f $name1"_npt.edr" -o $name1"_pressure.xvg"
    modVim $name1"_pressure.xvg"
    # export the density profile
-   echo Density | $groPATH/g_energy -f $name1"_npt.edr" -o $name1"_density.xvg"
+   echo Density | $groPATH/$g_energy -f $name1"_npt.edr" -o $name1"_density.xvg"
    modVim $name1"_density.xvg"
 } 
 
@@ -259,13 +319,13 @@ sim_conditions() {
    fi
 
    # export potential energy, temperature, pressure and density profiles 
-   echo Potential | $groPATH/g_energy -f $energy -o $nameprod"_potential.xvg"
+   echo Potential | $groPATH/$g_energy -f $energy -o $nameprod"_potential.xvg"
    modVim $nameprod"_potential.xvg"
-   echo Temperature | $groPATH/g_energy -f $energy -o $nameprod"_temperature.xvg"
+   echo Temperature | $groPATH/$g_energy -f $energy -o $nameprod"_temperature.xvg"
    modVim $nameprod"_temperature.xvg"
-   echo Pressure | $groPATH/g_energy -f $energy -o $nameprod"_pressure.xvg"
+   echo Pressure | $groPATH/$g_energy -f $energy -o $nameprod"_pressure.xvg"
    modVim $nameprod"_pressure.xvg"
-   echo Density | $groPATH/g_energy -f $energy -o $nameprod"_density.xvg"
+   echo Density | $groPATH/$g_energy -f $energy -o $nameprod"_density.xvg"
    modVim $nameprod"_density.xvg"
    # to plot using ggplot check option the function "GGplot"
 }
@@ -285,18 +345,18 @@ clean_trj() {
    # if -s and -f are not set prompt and exit
    checkTflags
    # removing water molecules from the trajectory file
-   echo Protein | $groPATH/trjconv -s $tpr -f $trj                             \
+   echo Protein | $groPATH/$trjconv -s $tpr -f $trj                             \
       -o $nameprod"_only.xtc"
    # removing water molecules from the tpr file 
-   echo Protein | $groPATH/tpbconv -s $tpr -o $nameprod"_only.tpr"
+   echo Protein | $groPATH/$tpbconv -s $tpr -o $nameprod"_only.tpr"
    # creating a protein only .gro file 
-   echo Protein | $groPATH/trjconv -s $nameprod"_only.tpr"                     \
+   echo Protein | $groPATH/$trjconv -s $nameprod"_only.tpr"                     \
       -f $nameprod"_only.xtc" -o $nameprod"_only.gro" -dump 0
    # account for the periodicity (nojump)
-   echo Protein | $groPATH/trjconv -s $nameprod"_only.tpr"                     \
+   echo Protein | $groPATH/$trjconv -s $nameprod"_only.tpr"                     \
       -f $nameprod"_only.xtc" -o $nameprod"_nojump.xtc" -pbc nojump
    # account for the periodicity (fitting) 
-   (echo "Backbone"; echo "Protein") | $groPATH/trjconv -s $nameprod"_only.tpr"\
+   (echo "Backbone"; echo "Protein") | $groPATH/$trjconv -s $nameprod"_only.tpr"\
       -f $nameprod"_nojump.xtc" -o $nameprod"_fit.xtc" -fit rot+trans
    # remove intermediate files and rename them in a less complicated way
    rm $nameprod"_nojump.xtc" $nameprod".xtc" $nameprod"_only.xtc"
@@ -306,24 +366,24 @@ clean_trj() {
 }
 
 #------
-# description : It calculates rmsd (backbone), gyration radius and rmsf (both 
+# description : It calculates rmsd (backbone), gyration radius and rmsf (both (echo "r 213 243 234 234"; echo "name 10 prova"; echo "q") | 
 #               for the backbone and the sidechains) 
 # requirements: .tpr + .xtc 
 rmsdf() {
    checkTflags
    # calculating the RMSD 
-   (echo "$optionRMSD"; echo "$optionRMSD") | $groPATH/g_rms -s $tpr -f $trj   \
+   (echo "$optionRMSD"; echo "$optionRMSD") | $groPATH/$g_rms -s $tpr -f $trj   \
       -o $nameprod"_rmsd.xvg" -tu ns
    modVim $nameprod"_rmsd.xvg"
    # calculating the radius of Gyration 
-   echo $optionGYRATION | $groPATH/g_gyrate -s $tpr -f $trj                    \
+   echo $optionGYRATION | $groPATH/$g_gyrate -s $tpr -f $trj                    \
       -o $nameprod"_rgyration.xvg"
    modVim $nameprod"_rgyration.xvg"
-   echo $optionRMSFb | $groPATH/g_rmsf -s $tpr -f $trj                         \
+   echo $optionRMSFb | $groPATH/$g_rmsf -s $tpr -f $trj                         \
       -o $nameprod"_rmsf_bb.xvg" -oq $nameprod"_rmsf_bb.pdb" -res
    modVim $nameprod"_rmsf_bb.xvg" 
       # res=averages for each residues
-   echo $optionRMSFsc | $groPATH/g_rmsf -s $tpr -f $trj                        \
+   echo $optionRMSFsc | $groPATH/$g_rmsf -s $tpr -f $trj                        \
       -o $nameprod"_rmsf_sc.xvg" -oq $nameprod"_rmsf_sc.pdb" -res 
    modVim $nameprod"_rmsf_sc.xvg" 
 }
@@ -342,20 +402,20 @@ clusterAnalysis() {
    while [ ! -f ./rmsd-matrix.xpm ]
    do
       # create the rmsd-matrix (using the backbone for the calculation)
-      (echo "$optionCLUSTER"; echo "$optionCLUSTER") | $groPATH/g_rms -s ../$tpr -f ../$trj   \
-         -f2 ../$trj -m rmsd-matrix.xpm -dist rmsd-distribution.xvg -tu ns     \
-         -skip $optionSKIPcluster -b $optionSTARTimeNS
+      (echo "$optionCLUSTER"; echo "$optionCLUSTER") | $groPATH/$g_rms -s ../$tpr -f ../$trj   \
+         -f2 ../$trj -m rmsd-matrix.xpm -dist rmsd-distribution.xvg            \
+         -skip $optionSKIPcluster -b $optionSTARTime
       # improve rmsd matrix plot
-      $groPATH/xpm2ps -f rmsd-matrix.xpm -o rmsd-matrix.eps
+      $groPATH/$xpm2ps -f rmsd-matrix.xpm -o rmsd-matrix.eps
    done
    #check the distribution file and decide the cutoff
    xmgrace rmsd-distribution.xvg
    read -e -p "Which cutoff do you want to use? " cutoff
    # cluster analysis on the rmsd matrix (Using the backbone for the calculation)
-   (echo "$optionCLUSTER"; echo "$optionCLUSTER") | $groPATH/g_cluster -s ../$tpr -f ../$trj  \
+   (echo "$optionCLUSTER"; echo "$optionCLUSTER") | $groPATH/$g_cluster -s ../$tpr -f ../$trj  \
       -dm rmsd-matrix.xpm -o clusters.xpm -sz clusters-size.xvg                \
       -clid clusters-ovt.xvg -cl clusters.pdb -cutoff $cutoff                  \
-      -method $optionCLUSTERMETHOD -tu ns -skip $optionSKIPcluster -b $optionSTARTimeNS
+      -method $optionCLUSTERMETHOD -skip $optionSKIPcluster -b $optionSTARTime
    # to visualize in pymol use
    # split_states clusters
    # delete clusters
@@ -370,7 +430,6 @@ clusterAnalysis() {
 repeatClusterAnalysis() {
    mv clusters_$name1 clusters"$i"_$name1
    clusterAnalysis
-   i++
    read -e -p "Do you want to rerun the analysis with a different method? [yes/no] " ramen
 }
 
@@ -388,33 +447,33 @@ pca() {
   while [ ! -f ./covariance.xpm ]
   do
      # calculating the covariance matrix (C-alpha), eigenvalues and eigenvectors
-     (echo "$optionPCA"; echo "$optionPCA") | $groPATH/g_covar -s ../$tpr -f ../$trj   \
-        -o eigenvalues.xvg -v eigenvectors.trr -xpma covariance.xpm -tu ns    \
-        -dt $optionDTpca -b $optionSTARTimeNS
+     (echo "$optionPCA"; echo "$optionPCA") | $groPATH/$g_covar -s ../$tpr -f ../$trj   \
+        -o eigenvalues.xvg -v eigenvectors.trr -xpma covariance.xpm -tu ps    \
+        -dt $optionDTpca -b $optionSTARTime
      # improve covariance matrix ploting
-     $groPATH/xpm2ps -f covariance.xpm -o covariance.eps
+     $groPATH/$xpm2ps -f covariance.xpm -o covariance.eps
   done
   xmgrace eigenvalues.xvg
   # determinare su quali autovalori lavorare
   read -e -p "how many eigenvalues do you want to use for the analysis? " range
-  (echo "$optionPCA"; echo "$optionPCA") | $groPATH/g_anaeig -v eigenvectors.trr       \
+  (echo "$optionPCA"; echo "$optionPCA") | $groPATH/$g_anaeig -v eigenvectors.trr       \
      -s ../$tpr -f ../$trj -first 1 -last $range -proj "projection-1"$range".xvg" \
-     -tu ns -b $optionSTARTimeNS
+     -tu ps -b $optionSTARTime
   for ((i = 1; i <= range; i=i+1))
   do
-     (echo "$optionPCA"; echo "$optionPCA") | $groPATH/g_anaeig -v eigenvectors.trr \
+     (echo "$optionPCA"; echo "$optionPCA") | $groPATH/$g_anaeig -v eigenvectors.trr \
         -s ../$tpr -f ../$trj -first $i -last $i -nframes 100                 \
-        -extr "ev"$i".pdb" -filt "ev"$i".xtc" -proj "ev"$i".xvg" -tu ns       \
-        -b $optionSTARTimeNS
-     $groPATH/g_analyze -f "ev"$i".xvg" -cc "ev"$i"-cc.xvg" -ac "ev"$i"-ac.xvg"
+        -extr "ev"$i".pdb" -filt "ev"$i".xtc" -proj "ev"$i".xvg" -tu ps       \
+        -b $optionSTARTime
+     $groPATH/$g_analyze -f "ev"$i".xvg" -cc "ev"$i"-cc.xvg" -ac "ev"$i"-ac.xvg"
   done
   # calculate 2d projections and FES
-  (echo "$optionPCA"; echo "$optionPCA") | $groPATH/g_anaeig -v eigenvectors.trr   \
+  (echo "$optionPCA"; echo "$optionPCA") | $groPATH/$g_anaeig -v eigenvectors.trr   \
      -s ../$tpr -f ../$trj -first 1 -last 2 -2d 2d-12.xvg
-  $groPATH/g_sham -f 2d-12.xvg -ls gibbs-12.xpm -notime
-  $groPATH/xpm2ps -f gibbs-12.xpm -o gibbs-12.eps -rainbow red
+  $groPATH/$g_sham -f 2d-12.xvg -ls gibbs-12.xpm -notime
+  $groPATH/$xpm2ps -f gibbs-12.xpm -o gibbs-12.eps -rainbow red
   perl $DIR/doitGROMACS_xpm2txt.pl gibbs-12.xpm
-  GGplot
+  GGplot; mv $nameprod"_pes.png" ..
   cd ..
 }
 
@@ -429,10 +488,33 @@ sasAnalysis() {
       mkdir sas_$name1
    fi
    cd sas_$name1
-   (echo "$optionSAS"; echo "$optionSAS") | $groPATH/g_sas -s ../$tpr -f ../$trj \
-      -o $name1"_area.xvg" -tv $name1"_volume.xvg" -or $name1"_resarea.xvg"      \
-      -dt $optionDTsas -b $optionSTARTimePS -probe $optionPROBE
+   (echo "Protein"; echo "$optionSAS") | $groPATH/$g_sas -s ../$tpr -f ../$trj  \
+      -o $name1"_area.xvg" -or $name1"_resarea.xvg"    \
+      -dt $optionDTsas -b $optionSTARTime -probe $optionPROBE
    # probe 0.7 nm perchè 16A -> 1.6 nm -> raggio 0.7 nm
+   cd ..
+}
+
+sasAnalysis-sites() {
+  # if -s and -f are not set prompt and exit
+  checkTflags
+  indexCreator
+   # create the directory
+   if [ ! -d ./sas_sites_$name1 ] ; then
+      mkdir sas_sites_$name1
+   fi
+   cd sas_sites_$name1
+   (echo "Protein"; echo "G6P") | $groPATH/$g_sas -s ../$tpr -f ../$trj -n ../$name1.ndx    \
+      -o $name1"_g6p_area.xvg" -or $name1"_g6p_resarea.xvg" \
+      -dt $optionDTsas -b $optionSTARTime -probe $optionPROBE #-q $name1"_g6p.pdb"
+   (echo "Protein"; echo "Co-enzyme") | $groPATH/$g_sas -s ../$tpr -f ../$trj   \
+      -n ../$name1.ndx -o $name1"_coenzyme_area.xvg"                             \
+      -or $name1"_coenzyme_resarea.xvg" -dt $optionDTsas -b $optionSTARTime    \
+      -probe $optionPROBE #-q $name1"_coenzyme.pdb"
+  (echo "Protein"; echo "strNADP+") | $groPATH/$g_sas -s ../$tpr -f ../$trj     \
+    -n ../$name1.ndx -o $name1"_strNADP+_area.xvg"                               \
+    -or $name1"_strNADPH_resarea.xvg" -dt $optionDTsas -b $optionSTARTime      \
+    -probe $optionPROBE #-q $name1"_strNADP+.pdb"
    cd ..
 }
 
@@ -441,9 +523,43 @@ sasAnalysis() {
 # requirements: .tpr + .xtc
 gromHB() {
   checkTflags
-  (echo "optionHB; echo "optionHB"")|$groPATH/g_hbond -s $trp -f $trj         \
-    -num $nameprod"_hb_count.xvg" -dist $nameprod"_hb_dist.xvg" -b $optionSTARTimeNS
-    -hbm $nameprod"_hb_matrix" -tu ns -dt $optionDT -b $optionSTARTimeNS 
+   # create the directory
+   if [ ! -d ./hydrogenBonds_$name1 ] ; then
+      mkdir hydrogenBonds_$name1
+   fi
+   cd hydrogenBonds_$name1
+  (echo "$optionHB"; echo "$optionHB") | $groPATH/$g_hbond -s ../$tpr -f ../$trj\
+    -num $name1"_hb_count.xvg" -dist $name1"_hb_dist.xvg"                \
+    -hbm $name1"_hb_matrix" -tu ps -dt $optionDThb -b $optionSTARTime 
+}
+
+#-------
+# description :
+# requirements: .tpr + .xtc
+gromHBsites() {
+  checkTflags
+  indexCreator
+   # create the directory
+   if [ ! -d ./hydrogenBonds_$name1 ] ; then
+      mkdir hydrogenBonds_$name1
+   fi
+   cd hydrogenBonds_$name1
+  (echo "G6P"; echo "G6P") | $groPATH/$g_hbond -s ../$tpr   \
+    -f ../$trj -n ../$name1.ndx -tu ps -dt $optionDThb -b $optionSTARTime        \
+    -num $name1"_G6P_count.xvg" -dist $name1"_G6P_dist.xvg"        \
+    -hbm $name1"_G6P_matrix" 
+  (echo "$Co-enzyme"; echo "$Co-enzyme") | $groPATH/$g_hbond -s ../$tpr   \
+    -f ../$trj -n ../$name1.ndx -tu ps -dt $optionDThb -b $optionSTARTime        \
+    -num $name1"_Co-enzyme_count.xvg" -dist $name1"_Co-enzyme_dist.xvg"        \
+    -hbm $name1"_Co-enzyme_matrix" 
+  (echo "strNADP+"; echo "strNADP+") | $groPATH/$g_hbond -s ../$tpr   \
+   -f ../$trj -n ../$name1.ndx -tu ps -dt $optionDThb -b $optionSTARTime        \
+  -num $name1"_strNADP+_count.xvg" -dist $name1"_strNADP+_dist.xvg"        \
+  -hbm $name1"_strNADP+_matrix"   
+#(echo "$optionHBsite"; echo "$optionHBsite") | $groPATH/$g_hbond -s ../$tpr   \
+    #-f ../$trj -n ../g6pd.ndx -tu ps -dt $optionDThb -b $optionSTARTime        \
+    #-num $name1"_"$optionHBsite"_count.xvg" -dist $name1"_"$optionHBsite"_dist.xvg"        \
+    #-hbm $name1"_"$optionHBsite"_matrix"
 }
 
 #---------
@@ -452,8 +568,8 @@ gromHB() {
 gromDSSP() {
   # if -s and -f are not set prompt and exit
   checkTflags
-  echo $optionDSSP | $groPATH/do_dssp -ver 1 -f $trj -s $tpr -o $nameprod"_ss.xpm" \
-    -sc $nameprod"_ss_count.xvg" -tu ns -dt $optionDTdssp -b $optionSTARTimeNS  
+  echo $optionDSSP | $groPATH/$do_dssp -ver 1 -f $trj -s $tpr -o $nameprod"_ss.xpm" \
+    -sc $nameprod"_ss_count.xvg" -tu ps -dt $optionDTdssp -b $optionSTARTime  
   modVim $nameprod"_ss_count.xvg"
 }
 
@@ -473,14 +589,6 @@ GGplot() {
   fi 
 }
 
-checkFlags() {
-  # check the definition of -b and -n 
-  if [[ -z "${cpu+x}" || -z "${name1+x}" ]]; then
-    helpMessage
-    error_exit "Execution halted! the script was called without any flags." 
-  fi 
-}
-
 #-------------------------------------------------------------------------------
 #---------------------------- The program begins here --------------------------
 
@@ -489,7 +597,7 @@ DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 optionRprog="$DIR/doitRGROMACS.R"
 #today=$(date +%a-%d-%b' %T')
 
-while getopts "hu:b:n:t:s:f:c:e:" opt; do
+while getopts "hgu:b:n:t:s:f:c:e:" opt; do
  case $opt in
     h) helpMessage; exit    ;;
     u) unres=$OPTARG        ;;
@@ -500,16 +608,18 @@ while getopts "hu:b:n:t:s:f:c:e:" opt; do
     f) trj=$OPTARG          ;;
     c) pdb1=$OPTARG         ;;
     e) energy=$OPTARG       ;;
+    g) gromacs_ver='5'  ;;
     \?) helpMessage;  exit  ;;
  esac
 done
+
+# if echo $* | grep -e "-g" -q; then
 
 # if -u exists call unres(), otherwise execute gromacs
 if [ -n "${unres}" ]; then
   unresAnalyses; exit;   
 else
   checkFlags
-
   # check existance of CONFIG_FILE and source it or create a new one
   export CONFIG_FILE="$(find . -maxdepth 1 -name doitGROMACS.config)"
   # Source configuration file
@@ -538,12 +648,13 @@ standard executables locations have been written on doitGROMACS.conf
     esac 
   fi
   # list the options 
+  setGROMACSbinaries
   doitOptions
 
   # check the existance of the selected option 
   read -e -p "execute option  " choice
   case $choice in
-    all|emin|nvt|npt|h20|cond|rmsdfg|cluster|pca|sas|dssp|hb|ggplot|ggplot-bis)
+    all|emin|nvt|npt|h20|cond|rmsdfg|cluster|pca|sas|sas-sites|dssp|hb|hb-sites|ggplot|ggplot-bis|indexCreator)
       if [ -z ${timens} ]; then
         timens="X"
         nameprod=${name1}_${timens}
@@ -579,19 +690,26 @@ standard executables locations have been written on doitGROMACS.conf
       while [ "$ramen" == "yes" ] 
       do
         repeatClusterAnalysis
+        i=$(($i+1))
       done  ;;
     pca)
       pca   ;;
     sas)
       sasAnalysis  ;;
+    sas-sites)
+      sasAnalysis-sites  ;;
     dssp)
       gromDSSP ;;
     hb)
       gromHB ;;         
+    hb-sites)
+      gromHBsites ;;         
     ggplot)
         GGplot ;;
     ggplot-bis) # hidden function
       sim_conditions && rmsdf && gromDSSP && GGplot ;;
+    indexCreator)
+        indexCreator ;;
   esac
   fi
 #----------------------------- The program ends here ---------------------------
