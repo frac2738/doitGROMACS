@@ -1,5 +1,0 @@
-doitGROMACS
-===========
-
-write README
-
