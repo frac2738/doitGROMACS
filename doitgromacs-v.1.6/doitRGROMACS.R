@@ -139,7 +139,8 @@ locate.funtion.file <- function() {
 
 # source all the functions & load the libraries
 locate.funtion.file()
-library("ggplot2"); library("gridExtra"); library("reshape2")
+library("ggplot2"); library("gridExtra"); library("reshape2"); library("grid")
+library("gdata"); library("plotflow"); library("dplyr")
 
 if (exists("file.potential") && exists("file.temperature") && exists("file.pressure") && exists("file.density") 
       && file.exists(paste(file.potential)) && file.exists(paste(file.temperature)) && file.exists(paste(file.pressure)) 
@@ -182,7 +183,8 @@ if (exists("file.rmsf.bb") && exists("file.rmsf.sc") && file.exists(paste(file.r
   ggxlab <- grep.labels(file.rmsf.bb)[[1]]; ggylab <- grep.labels(file.rmsf.bb)[[2]]
   ggtitle <- grep.title(file.rmsf.bb)
   output.rmsf <- paste0(output,"_rmsf.png")
-  gromacsRMSF(file.rmsf.bb,file.rmsf.sc,output.rmsf,ggxlab,ggylab,ggtitle,ggheight,ggwidth,ggdpi)
+  #gromacsRMSF(file.rmsf.bb,file.rmsf.sc,output.rmsf,ggxlab,ggylab,ggtitle,ggheight,ggwidth,ggdpi)
+  gromacsRMSF2(file.rmsf.bb,file.rmsf.sc,output.rmsf,ggxlab,ggylab,ggtitle,ggheight,ggwidth,ggdpi)
 }
 
 # plot heat map

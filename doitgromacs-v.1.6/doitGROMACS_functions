@@ -5,10 +5,21 @@
 # on doitgromacs.log. The general message may be replace while invoking 
 # - error_exit "<write something>"
 error_exit() {
-  echo "$(date): ${1:-"
-Unknown Error, execution halted "}" 2>&1 | tee -a doitgromacs.log 
   echo ""
-  exit 1
+  echo "$(date): ${1:-" Unknown Error, execution halted "}" 2>&1 | tee -a doitgromacs_err.log 
+  echo "";  exit 1
+}
+
+stop_exe() {
+  echo ""
+  echo "$(date): ${1:-" Ctrl-c was pressed, execution halted "}" 2>&1 | tee -a doitgromacs_err.log 
+  echo ""; exit 1
+}
+
+wrong_exit_code() {
+  if [ ! $? -eq 0 ]; then
+    error_exit "wrong exit code, execution halted"
+  fi
 }
 
 #------------
@@ -47,7 +58,7 @@ helpMessage() {
     ---------------------------------------------------------------------------
     -[no]h   bool     yes         Print help info
     -u       string   txt file    Analyses of an unres trajectory
-    -g       bool     no          Set gromacs 5 syntax
+    -g       bool     bool        Set gromacs 5 syntax
                   
                                           [ALWAYS REQUIRED in absence of -u]
     ---------------------------------------------------------------------------
@@ -55,7 +66,6 @@ helpMessage() {
                                   acrm      -> Darwin building computer
                                   emerald   -> Emerald cluster
                                   lappy     -> Personal laptop
-                                  default	  -> default locations
     -n       int      wt          Set the name
 
                                           [OPTIONAL (function dependant)]
@@ -81,6 +91,9 @@ doitOptions() {
                                  -----------
     ---------------------------- doitOPTIONS ----------------------------
                                  -----------
+    
+     NOTE: Always check the use of "GROMACS 5" in the dynamics before analyse
+
 
         all           - Starting from scratch ** 
         emin          - Starting from E-minimization ** 
@@ -91,13 +104,19 @@ doitOptions() {
         rmsdfg        - Calculate RMSD, GYRATION RADIUS and RMSF [backbone & sidechains] 
         cluster       - Cluster analysis 
         pca           - PCA analysis 
-        sas           - SAS analysis  
-        sas-sites     - SAS analysis on only the binding sites  
         dssp          - DSSP analysis
         ggplot        - Plot with ggplot (R)
+        sas           - SAS analysis  
+        sas-sites     - SAS analysis on only the binding sites  
         hb            - Hydrogen bonds analysis [not yet implemented]
         hb-sites      - Hydrogen bonds analysis on binding sites
+        meansas       - calculate the mean of the sas values
+        meanhb        - calculate the mean of the hydrogen bond values
         indexCreator  - Create binding sites index for the mutant
+        modvim+       - replace "@" with "#" in a file 
+        catomain      - rebuild a full atoms structure from CA structure
+        split_states  - given an unres trj extract all the frames and convert
+                        into all-atom structures
 
     --------------------------------------------------------------------
                                -----------
@@ -156,6 +175,24 @@ checkFlags() {
   fi 
 }
 
+checkFlags_t() {
+  if [[ -z "${tpr+x}" || -z "${trj+x}" ]]; then
+    helpMessage; error_exit " execution halted: tpr and trj files are required (flags -s -f)"
+  fi
+}
+
+checkFlags_pdb() {
+  if [ -z "${pdb1}" ]; then
+    helpMessage; error_exit " execution halted: a pdb file is required (-c)"
+  fi
+}
+
+checkFlags_energy() {
+  if [ -z "${energy}" ]; then
+    helpMessage; error_exit " execution halted: an energy file is required (-e)"
+  fi
+}
+
 #--------------
 # description : this function takes a ".stat" file from an UNRES simulation and 
 #               passes it to an R script for analyses.
@@ -167,16 +204,21 @@ unresAnalyses() {
 # description: Replace all the "@" with "#" using sed. Usefull to avoid conflicts
 #              between R and grace.
 modVim() {
-  sed -ie 's/@/#/g' "$1" # -i modify and save 
+  sed -i 's/@/#/g' "$1" # -i modify and save 
+}
+
+modVim_plus() {
+  read -e -p "che file vuoi? " file1 
+  modVim $file1
 }
 
 indexCreator() {
   # create a index group specific for the glucose binding site in G6PD
-  (echo "r 171 263 201 202 205 395 365 239 360 258"; echo "name 10 G6P"; echo "q") | make_ndx -f $nameprod.gro -o $name1.ndx
+  (echo "r 171 201 202 205 239 258 263 360 365 395"; echo "name 10 G6P"; echo "q") | make_ndx -f $nameprod.gro -o $name1.ndx
   # create a index group specific for the Co-enzyme binding site in G6PD
-  (echo "r 38 43 41 40 73 72 112 141 143 146 144 170 172 171"; echo "name 11 Co-enzyme"; echo "q") | make_ndx -f $nameprod.gro -n $name1.ndx -o $name1.ndx
+  (echo "r 38 40 41 43 72 73 112 141 143 144 146 170 171 172"; echo "name 11 Co-enzyme"; echo "q") | make_ndx -f $nameprod.gro -n $name1.ndx -o $name1.ndx
   # create a index group specific for the structural NADPH+ binding site in G6PD
-  (echo "r 357 487 238 363 364 366 393 423 401 509 421 507 403 370 503 493"; echo "name 12 strNADP+"; echo "q") | make_ndx -f $nameprod.gro -n $name1.ndx -o $name1.ndx
+  (echo "r 238 357 363 364 366 370 393 401 403 421 423 487 493 503 507 509"; echo "name 12 strNADP+"; echo "q") | make_ndx -f $nameprod.gro -n $name1.ndx -o $name1.ndx
 }
 
 #-------
@@ -187,11 +229,9 @@ indexCreator() {
 # requirements: .pdb + .mdp 
 inputs() { 
   # if -c is not set prompt and exit
-  if [ -z "${pdb1}" ]; then
-    helpMessage; error_exit " execution halted: a pdb file is required (-c)"
-  fi 
+  checkFlags_pdb
   # create a topology file
-  (echo "$optionFF"; echo "$optionWM") | $groPATH/$pdb2gmx -f $pdb1             \
+  (echo "$optionFF"; echo "$optionWM") | $groPATH/$pdb2gmx -f $pdb1            \
     -o $name1"_processed.pdb" -p topology.top -ignh -v
   # create a box
   $groPATH/$editconf -f $name1"_processed.pdb" -o $name1"_inbox.pdb"           \
@@ -215,7 +255,8 @@ inputs() {
   $groPATH/$genion -s input_ioni.tpr -p topology.top -o $name1"_ioni.pdb"      \
     -pname NA -nname CL -np $optionIONSpos -nn $optionIONSneg
   # [-np] for positive and [-nn] for negative 
-}
+#} &> >(tee doitgromacs_inputs.log) >&2
+} > >(tee doitgromacs_inputs.log) 2> >(tee doitgromacs_inputs.err >&2)
 
 #--------------------
 # description : It minimises a structure 
@@ -227,8 +268,8 @@ energy_minimization() {
   # export the potential energy profile
   echo Potential | $groPATH/$g_energy -f $name1"_min.edr" -o $name1"_potential.xvg"
   modVim $name1"_potential.xvg"
-}  
-
+} &> >(tee doitgromacs_emin.log) >&2
+ 
 #----
 # description : It runs a NVT equilibration (constant volume and temperature)
 # requirements: nvt.mdp + min.gro + topology.top
@@ -239,14 +280,14 @@ nvt() {
    # export the temperature profile 
    echo Temperature | $groPATH/$g_energy -f $name1"_nvt.edr" -o $name1"_temperature.xvg"
    modVim $name1"_temperature.xvg"
-} 
+} &> >(tee doitgromacs_nvt.log) >&2
 
 #----
 # description : It runs a NPT equilibration (constant pressure)
 # requirements: npt.mdp + nvt.gro + topology.top
 npt() {
    $groPATH/$grompp -f $nptMDP -c $name1"_nvt.gro" -p topology.top              \
-      -o input_npt.tpr
+      -o input_npt.tpr -maxwarn 1
    $groPATH/mdrun -s input_npt.tpr -deffnm $name1"_npt" -v  
    # export the pressure profile 
    echo Pressure | $groPATH/$g_energy -f $name1"_npt.edr" -o $name1"_pressure.xvg"
@@ -254,36 +295,27 @@ npt() {
    # export the density profile
    echo Density | $groPATH/$g_energy -f $name1"_npt.edr" -o $name1"_density.xvg"
    modVim $name1"_density.xvg"
-} 
+} &> >(tee doitgromacs_npt.log) >&2
 
 #---------------
 # description : Given an energy file, it extracts energy, temerature, pressure
 #               and density profiles.
 # requirements: energy.edr
 sim_conditions() {
-   # if -e is not set prompt and exit
-   if [ -z "${energy}" ]; then
-      helpMessage; error_exit " execution halted: an energy file is required (-e)"
-   fi
+  # if -e is not set prompt and exit
+  checkFlags_energy
+  # export potential energy, temperature, pressure and density profiles 
+  echo Potential | $groPATH/$g_energy -f $energy -o $nameprod"_potential.xvg"
+  modVim $nameprod"_potential.xvg"
+  echo Temperature | $groPATH/$g_energy -f $energy -o $nameprod"_temperature.xvg"
+  modVim $nameprod"_temperature.xvg"
+  echo Pressure | $groPATH/$g_energy -f $energy -o $nameprod"_pressure.xvg"
+  modVim $nameprod"_pressure.xvg"
+  echo Density | $groPATH/$g_energy -f $energy -o $nameprod"_density.xvg"
+  modVim $nameprod"_density.xvg"
+  # to plot using ggplot check option the function "GGplot"
+} &> >(tee doitgromacs_simcond.log) >&2
 
-   # export potential energy, temperature, pressure and density profiles 
-   echo Potential | $groPATH/$g_energy -f $energy -o $nameprod"_potential.xvg"
-   modVim $nameprod"_potential.xvg"
-   echo Temperature | $groPATH/$g_energy -f $energy -o $nameprod"_temperature.xvg"
-   modVim $nameprod"_temperature.xvg"
-   echo Pressure | $groPATH/$g_energy -f $energy -o $nameprod"_pressure.xvg"
-   modVim $nameprod"_pressure.xvg"
-   echo Density | $groPATH/$g_energy -f $energy -o $nameprod"_density.xvg"
-   modVim $nameprod"_density.xvg"
-   # to plot using ggplot check option the function "GGplot"
-}
-
-checkTflags() {
-  if [[ -z "${tpr+x}" || -z "${trj+x}" ]]; then
-    helpMessage
-    error_exit " execution halted: tpr and trj files are required (-s -f)"
-  fi
-}
 
 #----------
 # description : It removes the water molecules from a trajectory (.xtc) and 
@@ -291,7 +323,7 @@ checkTflags() {
 # requirements: .tpr + .trj 
 clean_trj() {
    # if -s and -f are not set prompt and exit
-   checkTflags
+   checkFlags_t
    # removing water molecules from the trajectory file
    echo Protein | $groPATH/$trjconv -s $tpr -f $trj                             \
       -o $nameprod"_only.xtc"
@@ -299,7 +331,7 @@ clean_trj() {
    echo Protein | $groPATH/$tpbconv -s $tpr -o $nameprod"_only.tpr"
    # creating a protein only .gro file 
    echo Protein | $groPATH/$trjconv -s $nameprod"_only.tpr"                     \
-      -f $nameprod"_only.xtc" -o $nameprod"_only.gro" -dump 0
+      -f $nameprod"_only.xtc" -o $nameprod"_only.gro" -dump $optiondump
    # account for the periodicity (nojump)
    echo Protein | $groPATH/$trjconv -s $nameprod"_only.tpr"                     \
       -f $nameprod"_only.xtc" -o $nameprod"_nojump.xtc" -pbc nojump
@@ -311,14 +343,14 @@ clean_trj() {
    mv $nameprod"_fit.xtc" $nameprod".xtc"
    mv $nameprod"_only.tpr" $nameprod".tpr"
    mv $nameprod"_only.gro" $nameprod".gro"
-}
+} &> >(tee doitgromacs_cleantrj.log) >&2
 
 #------
 # description : It calculates rmsd (backbone), gyration radius and rmsf (both (echo "r 213 243 234 234"; echo "name 10 prova"; echo "q") | 
 #               for the backbone and the sidechains) 
 # requirements: .tpr + .xtc 
 rmsdf() {
-   checkTflags
+   checkFlags_t
    # calculating the RMSD 
    (echo "$optionRMSD"; echo "$optionRMSD") | $groPATH/$g_rms -s $tpr -f $trj   \
       -o $nameprod"_rmsd.xvg" -tu ns
@@ -334,14 +366,14 @@ rmsdf() {
    echo $optionRMSFsc | $groPATH/$g_rmsf -s $tpr -f $trj                        \
       -o $nameprod"_rmsf_sc.xvg" -oq $nameprod"_rmsf_sc.pdb" -res 
    modVim $nameprod"_rmsf_sc.xvg" 
-}
+} &> >(tee doitgromacs_rmsf.log) >&2
 
 #----------------
 # description : read the name of the function
 # requirements: .tpr + .xtc
 gromCLUSTER() {
    # if -s and -f are not set prompt and exit
-   checkTflags
+   checkFlags_t
    if [ ! -d ./clusters_$name1 ] ; then
       mkdir clusters_$name1
    fi
@@ -370,7 +402,8 @@ gromCLUSTER() {
    # dss
    # show cartoon
    cd ..
-}
+} &> >(tee doitgromacs_cluster.log) >&2
+
 
 #----------------------
 # description : The name says everything
@@ -386,7 +419,7 @@ repeatgromCLUSTER() {
 # requirements: .tpr + .xtc
 gromPCA() {
   # if -s and -f are not set prompt and exit
-  checkTflags
+  checkFlags_t
   if [ ! -d ./PCA_$name1 ] ; then
      mkdir PCA_$name1
   fi
@@ -423,14 +456,14 @@ gromPCA() {
   perl $DIR/doitGROMACS_xpm2txt.pl gibbs-12.xpm
   GGplot; mv $nameprod"_pes.png" ..
   cd ..
-}
+} &> >(tee doitgromacs_pca.log) >&2
 
 #------------
 # description : The name says everything
 # requirements: .tpr + .xtc
 gromSAS() {
    # if -s and -f are not set prompt and exit
-   checkTflags
+   checkFlags_t
    # create the directory
    if [ ! -d ./sas_$name1 ] ; then
       mkdir sas_$name1
@@ -441,36 +474,33 @@ gromSAS() {
       -dt $optionDTsas -b $optionSTARTime -probe $optionPROBE
    # probe 0.7 nm perchè 16A -> 1.6 nm -> raggio 0.7 nm
    cd ..
-}
+} &> >(tee doitgromacs_sas.log) >&2
 
 gromSAS-sites() {
   # if -s and -f are not set prompt and exit
-  checkTflags
-  indexCreator
+  checkFlags_t; indexCreator
    # create the directory
    if [ ! -d ./sas_sites_$name1 ] ; then
       mkdir sas_sites_$name1
    fi
    cd sas_sites_$name1
    (echo "Protein"; echo "G6P") | $groPATH/$g_sas -s ../$tpr -f ../$trj -n ../$name1.ndx    \
-      -o $name1"_g6p_area.xvg" -or $name1"_g6p_resarea.xvg" \
-      -dt $optionDTsas -b $optionSTARTime -probe $optionPROBE #-q $name1"_g6p.pdb"
-   (echo "Protein"; echo "Co-enzyme") | $groPATH/$g_sas -s ../$tpr -f ../$trj   \
-      -n ../$name1.ndx -o $name1"_coenzyme_area.xvg"                             \
-      -or $name1"_coenzyme_resarea.xvg" -dt $optionDTsas -b $optionSTARTime    \
-      -probe $optionPROBE #-q $name1"_coenzyme.pdb"
-  (echo "Protein"; echo "strNADP+") | $groPATH/$g_sas -s ../$tpr -f ../$trj     \
-    -n ../$name1.ndx -o $name1"_strNADP+_area.xvg"                               \
-    -or $name1"_strNADPH_resarea.xvg" -dt $optionDTsas -b $optionSTARTime      \
-    -probe $optionPROBE #-q $name1"_strNADP+.pdb"
+      -o $name1"_g6p_area.xvg" -or $name1"_g6p_resarea.xvg" -dt $optionDTsas   \
+       -b $optionSTARTime  
+   (echo "Protein"; echo "Co-enzyme") | $groPATH/$g_sas -s ../$tpr -f ../$trj  \
+      -n ../$name1.ndx -o $name1"_coenzyme_area.xvg" -b $optionSTARTime        \
+      -or $name1"_coenzyme_resarea.xvg" -dt $optionDTsas
+  (echo "Protein"; echo "strNADP+") | $groPATH/$g_sas -s ../$tpr -f ../$trj    \
+    -n ../$name1.ndx -o $name1"_strNADP+_area.xvg"  -b $optionSTARTime         \
+    -or $name1"_strNADPH_resarea.xvg" -dt $optionDTsas
    cd ..
-}
+} &> >(tee doitgromacs_sasites.log) >&2
 
 #-------
 # description :
 # requirements: .tpr + .xtc
 gromHB() {
-  checkTflags
+  checkFlags_t
    # create the directory
    if [ ! -d ./hydrogenBonds_$name1 ] ; then
       mkdir hydrogenBonds_$name1
@@ -479,14 +509,13 @@ gromHB() {
   (echo "$optionHB"; echo "$optionHB") | $groPATH/$g_hbond -s ../$tpr -f ../$trj\
     -num $name1"_hb_count.xvg" -dist $name1"_hb_dist.xvg"                \
     -hbm $name1"_hb_matrix" -tu ps -dt $optionDThb -b $optionSTARTime 
-}
+} &> >(tee doitgromacs_hb.log) >&2
 
 #-------
 # description :
 # requirements: .tpr + .xtc
 gromHB-sites() {
-  checkTflags
-  indexCreator
+  checkFlags_t; indexCreator
    # create the directory
    if [ ! -d ./hydrogenBonds_$name1 ] ; then
       mkdir hydrogenBonds_$name1
@@ -504,22 +533,18 @@ gromHB-sites() {
    -f ../$trj -n ../$name1.ndx -tu ps -dt $optionDThb -b $optionSTARTime        \
   -num $name1"_strNADP+_count.xvg" -dist $name1"_strNADP+_dist.xvg"        \
   -hbm $name1"_strNADP+_matrix"   
-#(echo "$optionHBsite"; echo "$optionHBsite") | $groPATH/$g_hbond -s ../$tpr   \
-    #-f ../$trj -n ../g6pd.ndx -tu ps -dt $optionDThb -b $optionSTARTime        \
-    #-num $name1"_"$optionHBsite"_count.xvg" -dist $name1"_"$optionHBsite"_dist.xvg"        \
-    #-hbm $name1"_"$optionHBsite"_matrix"
-}
+} &> >(tee doitgromacs_hbsites.log) >&2
 
 #---------
 # description :
 # requirements: .tpr + .xtc
 gromDSSP() {
   # if -s and -f are not set prompt and exit
-  checkTflags
+  checkFlags_t
   echo $optionDSSP | $groPATH/$do_dssp -ver 1 -f $trj -s $tpr -o $nameprod"_ss.xpm" \
     -sc $nameprod"_ss_count.xvg" -tu ps -dt $optionDTdssp -b $optionSTARTime  
   modVim $nameprod"_ss_count.xvg"
-}
+} &> >(tee doitgromacs_dssp.log) >&2
 
 #-------
 GGplot() {
@@ -532,7 +557,77 @@ GGplot() {
       -u=$nameprod"_potential.xvg" -p=$nameprod"_pressure.xvg"                 \
       -fb=$nameprod"_rmsf_bb.xvg" -fsc=$nameprod"_rmsf_sc.xvg"                 \
       -hm="pes_profile.txt"
+    $RscriptEXE $DIR/scriptino.R $DIR/schematics_bindingSites                  \
+      $DIR/schematics_motileRegions $nameprod"_rmsf_bb.xvg"                    \
+      $nameprod"_rmsf_schem"
   else 
     error_exit " the function "GGplot" requires a R script located in $DIR."
   fi 
+} &> >(tee doitgromacs_ggplot.log) >&2
+
+mean_sas() {
+  ls && echo "select some files please: " &&  read -a FILES_ARRAY
+  for i in "${FILES_ARRAY[@]}" ; do
+    modVim $i
+    # grep: avoid commented lines
+    # awk: select 4th column and calculate the mean
+    grep -v '^#' $i | awk '{total += $4} END {print total/NR}'
+  done
 }
+
+mean_hb() {
+  ls && echo "select some files please: " &&  read -a FILES_ARRAY
+  for i in "${FILES_ARRAY[@]}" ; do
+    modVim $i
+    # grep: avoid commented lines
+    # awk: select 2nd column and calculate the mean
+    grep -v '^#' $i | awk '{total += $2} END {print total/NR}'
+  done
+}
+
+CAtoMAIN () {
+  filenameFULL=$(basename $1)
+  filename="${filenameFULL%.*}"
+  echo $filename
+  grep -B1000000 -m1 -e "TER" $1 > start.pdb
+  ~martin/bin/catomain start.pdb $filename"_start.pdb"
+  grep -A1000000 -m2 -e "TER" $1 > end.pdb
+  sed -e '/^TER/d' end.pdb
+  ~martin/bin/catomain end.pdb $filename"_end.pdb"
+  sed -i 's/ A / B /g' $filename"_end.pdb" 
+
+  cat $filename"_start.pdb" $filename"_end.pdb" > $filename"_all.pdb"
+  rm start.pdb; rm end.pdb
+  rm $filename"_start.pdb"; rm $filename"_end.pdb"
+}&> >(tee doitgromacs_catomain.log) >&2
+
+split_states() {
+  if [ ! -d ./$1"_states" ]; then
+    mkdir $1_states
+    cp $1 $1"_states"
+    cd $1"_states"
+  fi
+
+  # check how many structure you have
+  #grep '^REMARK' $1
+
+  # grep the times and save them in a list
+  times=($(grep '^REMARK' $1 | grep -Eo '[0-9]+.[0-9]+\s'))
+  #lines=($(grep -n 'REMARK' $1 | grep -Eo '^[0-9]+'))
+  length_times=${#times[@]}
+
+  for (( i=0; i<$length_times; i++ )); do
+    if [[ $i == $((length_times - 1)) ]]; then
+      grep -A1000000 -m1 -e "REMARK.time\s*${times[$i]}" $1 > "${times[i]}.pdb"
+      CAtoMAIN "${times[i]}.pdb"
+    else
+      grep -A100000 "REMARK.time\s*${times[$i]}" $1 | grep -B1000000 "REMARK.time\s*${times[$i+1]}" > "${times[i]}.pdb"
+      sed -i '$ d' "${times[$i]}.pdb"
+      CAtoMAIN "${times[i]}.pdb"
+    fi  
+  done
+
+  rm $1
+  cd ..
+}&> >(tee doitgromacs_split_states.log) >&2
+

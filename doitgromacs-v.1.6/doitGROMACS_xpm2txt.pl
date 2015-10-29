@@ -41,7 +41,6 @@ open(my $fh, '>', 'pes_profile.txt');
 
 close $fh;
 
-
 # subroutine definition
 sub letter_to_energy {
 	my ($value, %hash) = @_;	# subroutine argument
@@ -52,5 +51,4 @@ sub letter_to_energy {
       return $fake;
     }
 }
-
 

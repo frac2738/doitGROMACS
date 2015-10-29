@@ -8,8 +8,14 @@ acrm:
 	echo "groPATH4='/acrm/usr/local/apps/gromacs/bin'"	>> doitGROMACS.config	
 	echo "groPATH5='/acrm/usr/local/apps/gromacs-5.0.4/bin'"	>> doitGROMACS.config	
 	echo "# R for acrm17"	>> doitGROMACS.config
-	echo "REXE='/export/francesco/R-3.1.0/bin/R'"	>> doitGROMACS.config	
-	echo "RscriptEXE='/export/francesco/R-3.1.0/bin/Rscript'"	>> doitGROMACS.config
+	echo "REXE='/export/francesco/softwares/r-3.2.1/bin/R'"	>> doitGROMACS.config	
+	echo "RscriptEXE='/export/francesco/softwares/r-3.2.1/bin/Rscript'"	>> doitGROMACS.config
+	echo ""	>> doitGROMACS.config
+	echo "#REXE='/export/francesco/R-3.1.0/bin/R'"	>> doitGROMACS.config	
+	echo "#RscriptEXE='/export/francesco/R-3.1.0/bin/Rscript'"	>> doitGROMACS.config
+	echo ""	>> doitGROMACS.config
+	echo "#REXE='/export/francesco/R-3.1.0/bin/R'"	>> doitGROMACS.config	
+	echo "#RscriptEXE='/export/francesco/R-3.1.0/bin/Rscript'"	>> doitGROMACS.config
 	echo ""	>> doitGROMACS.config
 	echo "# R for any other machines"	>> doitGROMACS.config
 	echo "#REXE='/usr/bin/R'"	>> doitGROMACS.config	

@@ -1,0 +1,69 @@
+WARNING: unknown gui '-ss=136cr1_150_ss_count.xvg', using X11
+
+ [1] "-o=136cr1_150"                 "-d=136cr1_150_rmsd.xvg"       
+ [3] "-g=136cr1_150_rgyration.xvg"   "-ss=136cr1_150_ss_count.xvg"  
+ [5] "-x=136cr1_150_density.xvg"     "-t=136cr1_150_temperature.xvg"
+ [7] "-u=136cr1_150_potential.xvg"   "-p=136cr1_150_pressure.xvg"   
+ [9] "-fb=136cr1_150_rmsf_bb.xvg"    "-fsc=136cr1_150_rmsf_sc.xvg"  
+[11] "-hm=pes_profile.txt"          
+[1] "no dimensions set: using standard values (height=7,width=11,dpi=300)"
+[1] "Sourcing /home/bsm3/ucbtca4/doitgromacs_current/doitRfunctions.R from /home/bsm3/ucbtca4/doitgromacs_current/doitRGROMACS.R"
+gdata: read.xls support for 'XLS' (Excel 97-2004) files ENABLED.
+
+gdata: read.xls support for 'XLSX' (Excel 2007+) files ENABLED.
+
+Attaching package: 'gdata'
+
+The following object is masked from 'package:stats':
+
+    nobs
+
+The following object is masked from 'package:utils':
+
+    object.size
+
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:gdata':
+
+    combine, first, last
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+gdata: read.xls support for 'XLS' (Excel 97-2004) files ENABLED.
+
+gdata: read.xls support for 'XLSX' (Excel 2007+) files ENABLED.
+
+Attaching package: 'gdata'
+
+The following object is masked from 'package:stats':
+
+    nobs
+
+The following object is masked from 'package:utils':
+
+    object.size
+
+Loading required package: gridExtra
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:gdata':
+
+    combine, first, last
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+

@@ -1,0 +1,87 @@
+
+Select the Force Field:
+From '/acrm/usr/local/apps/gromacs/share/gromacs/top':
+ 1: AMBER03 protein, nucleic AMBER94 (Duan et al., J. Comp. Chem. 24, 1999-2012, 2003)
+ 2: AMBER94 force field (Cornell et al., JACS 117, 5179-5197, 1995)
+ 3: AMBER96 protein, nucleic AMBER94 (Kollman et al., Acc. Chem. Res. 29, 461-469, 1996)
+ 4: AMBER99 protein, nucleic AMBER94 (Wang et al., J. Comp. Chem. 21, 1049-1074, 2000)
+ 5: AMBER99SB protein, nucleic AMBER94 (Hornak et al., Proteins 65, 712-725, 2006)
+ 6: AMBER99SB-ILDN protein, nucleic AMBER94 (Lindorff-Larsen et al., Proteins 78, 1950-58, 2010)
+ 7: AMBERGS force field (Garcia & Sanbonmatsu, PNAS 99, 2782-2787, 2002)
+ 8: CHARMM27 all-atom force field (with CMAP) - version 2.0
+ 9: GROMOS96 43a1 force field
+10: GROMOS96 43a2 force field (improved alkane dihedrals)
+11: GROMOS96 45a3 force field (Schuler JCC 2001 22 1205)
+12: GROMOS96 53a5 force field (JCC 2004 vol 25 pag 1656)
+13: GROMOS96 53a6 force field (JCC 2004 vol 25 pag 1656)
+14: OPLS-AA/L all-atom force field (2001 aminoacid dihedrals)
+15: [DEPRECATED] Encad all-atom force field, using full solvent charges
+16: [DEPRECATED] Encad all-atom force field, using scaled-down vacuum charges
+17: [DEPRECATED] Gromacs force field (see manual)
+18: [DEPRECATED] Gromacs force field with hydrogens for NMR
+
+Using the Amber99sb-ildn force field in directory amber99sb-ildn.ff
+
+
+Select the Water Model:
+Reading 2bhl_fixed.pdb...
+Read 7758 atoms
+Renaming atom 'CD1' in residue 33 ILE to 'CD'
+Renaming atom 'CD1' in residue 35 ILE to 'CD'
+Renaming atom 'CD1' in residue 36 ILE to 'CD'
+Renaming atom 'CD1' in residue 48 ILE to 'CD'
+Renaming atom 'CD1' in residue 52 ILE to 'CD'
+Renaming atom 'CD1' in residue 67 ILE to 'CD'
+Renaming atom 'CD1' in residue 80 ILE to 'CD'
+Renaming atom 'CD1' in residue 154 ILE to 'CD'
+Renaming atom 'CD1' in residue 162 ILE to 'CD'
+Renaming atom 'CD1' in residue 167 ILE to 'CD'
+Renaming atom 'CD1' in residue 168 ILE to 'CD'
+Renaming atom 'CD1' in residue 187 ILE to 'CD'
+Renaming atom 'CD1' in residue 196 ILE to 'CD'
+Renaming atom 'CD1' in residue 199 ILE to 'CD'
+Renaming atom 'CD1' in residue 220 ILE to 'CD'
+Renaming atom 'CD1' in residue 224 ILE to 'CD'
+Renaming atom 'CD1' in residue 230 ILE to 'CD'
+Renaming atom 'CD1' in residue 234 ILE to 'CD'
+Renaming atom 'CD1' in residue 255 ILE to 'CD'
+Renaming atom 'CD1' in residue 256 ILE to 'CD'
+Renaming atom 'CD1' in residue 295 ILE to 'CD'
+Renaming atom 'CD1' in residue 355 ILE to 'CD'
+Renaming atom 'CD1' in residue 380 ILE to 'CD'
+Renaming atom 'CD1' in residue 392 ILE to 'CD'
+Renaming atom 'CD1' in residue 441 ILE to 'CD'
+Renaming atom 'CD1' in residue 464 ILE to 'CD'
+Renaming atom 'CD1' in residue 472 ILE to 'CD'
+Renaming atom 'CD1' in residue 480 ILE to 'CD'
+Renaming atom 'CD1' in residue 483 ILE to 'CD'
+Renaming atom 'CD1' in residue 33 ILE to 'CD'
+Renaming atom 'CD1' in residue 35 ILE to 'CD'
+Renaming atom 'CD1' in residue 36 ILE to 'CD'
+Renaming atom 'CD1' in residue 48 ILE to 'CD'
+Renaming atom 'CD1' in residue 52 ILE to 'CD'
+Renaming atom 'CD1' in residue 67 ILE to 'CD'
+Renaming atom 'CD1' in residue 80 ILE to 'CD'
+Renaming atom 'CD1' in residue 154 ILE to 'CD'
+Renaming atom 'CD1' in residue 162 ILE to 'CD'
+Renaming atom 'CD1' in residue 167 ILE to 'CD'
+Renaming atom 'CD1' in residue 168 ILE to 'CD'
+Renaming atom 'CD1' in residue 187 ILE to 'CD'
+Renaming atom 'CD1' in residue 196 ILE to 'CD'
+Renaming atom 'CD1' in residue 199 ILE to 'CD'
+Renaming atom 'CD1' in residue 220 ILE to 'CD'
+Renaming atom 'CD1' in residue 224 ILE to 'CD'
+Renaming atom 'CD1' in residue 230 ILE to 'CD'
+Renaming atom 'CD1' in residue 234 ILE to 'CD'
+Renaming atom 'CD1' in residue 255 ILE to 'CD'
+Renaming atom 'CD1' in residue 256 ILE to 'CD'
+Renaming atom 'CD1' in residue 295 ILE to 'CD'
+Renaming atom 'CD1' in residue 355 ILE to 'CD'
+Renaming atom 'CD1' in residue 380 ILE to 'CD'
+Renaming atom 'CD1' in residue 392 ILE to 'CD'
+Renaming atom 'CD1' in residue 441 ILE to 'CD'
+Renaming atom 'CD1' in residue 464 ILE to 'CD'
+Renaming atom 'CD1' in residue 472 ILE to 'CD'
+Renaming atom 'CD1' in residue 480 I
+SIGINT Caught ...
+... Script Exiting!

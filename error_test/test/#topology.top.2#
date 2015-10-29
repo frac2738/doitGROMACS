@@ -1,0 +1,46 @@
+;
+;	File 'topology.top' was generated
+;	By user: ucbtca4 (167787)
+;	On host: acrm17
+;	At date: Wed Oct 28 18:18:36 2015
+;
+;	This is a standalone topology file
+;
+;	It was generated using program:
+;	pdb2gmx - VERSION 4.6
+;
+;	Command line was:
+;	/acrm/usr/local/apps/gromacs/bin/pdb2gmx -f 2bhl_fixed.pdb -o ciao_processed.pdb -p topology.top -ignh -v 
+;
+;	Force field was read from the standard Gromacs share directory.
+;
+
+; Include forcefield parameters
+#include "amber99sb-ildn.ff/forcefield.itp"
+
+; Include chain topologies
+#include "topology_Protein_chain_A.itp"
+#include "topology_Protein_chain_B.itp"
+
+; Include water topology
+#include "amber99sb-ildn.ff/tip3p.itp"
+
+#ifdef POSRES_WATER
+; Position restraint for each water oxygen
+[ position_restraints ]
+;  i funct       fcx        fcy        fcz
+   1    1       1000       1000       1000
+#endif
+
+; Include topology for ions
+#include "amber99sb-ildn.ff/ions.itp"
+
+[ system ]
+; Name
+Protein in water
+
+[ molecules ]
+; Compound        #mols
+Protein_chain_A     1
+Protein_chain_B     1
+SOL             56961
